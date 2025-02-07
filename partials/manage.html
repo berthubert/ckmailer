@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block div %}
+x-data="{
+state: 0,
+email: ''
+}"
+{% endblock %}
+
+{% block javascript %}
+{{ super() }}
+{% endblock %}
+
+{% block header %}
+<h1>Beheer je account gebruiker {{email}}</h1>
+
+{% endblock %}
+
+{% block main %}
+  <div>
+    <p>
+      De volgende mailing lists zijn beschikbaar:
+    </p>
+    <table class="striped">
+      <thead>
+	<tr>
+	  <th>Naam</th>
+	  <th>Omschrijving</th>
+	  <th>Ingeschreven</th>
+	</tr>
+      </thead>
+      <tbody>
+	{% for c in channels %}
+	<tr><td>{{c.name}}</td>
+	  <td>{{c.description}}</td>
+	  <td><input @click.prevent='changeSubscription("{{timsi}}", "{{c.id}}", $el)' {% if c.subscribed==1 %}checked{% endif %} type="checkbox"></td>
+	</tr>
+	{% endfor %}
+      </tbody>
+    </table>
+
+    <h5>Privacybeleid</h5>
+    <p>Je data wordt aan niemand verkocht en met niemand gedeeld. 
+      Ik ga je nooit spammen. Als er ooit andere mail wordt gestuurd is dat omdat dat heel dringend nodig was (bijvoorbeeld als we gehacked zouden zijn). Behalve je emailadres en je abonnementen slaan we niets op. Niet eens je naam, en ook geen wachtwoord.
+      Wel worden er tijdelijk logfiles bijgehouden om storingen te onderzoeken, maar die logregels zijn niet aan je account gekoppeld.
+    </p>
+    <p>
+      Alles draait op <a href="https://www.lenovo.com/nl/nl/p/desktops/thinkcentre/m-series-tiny/thinkcentre-m70q/wmd00000405">mijn servertje</a> thuis nabij Den Haag, en niet op een cloud. 
+    </p>
+    <p>
+      Voor vragen, inzage in je data, of verwijderverzoeken, neem contact op met <a href="https://berthub.eu">Bert Hubert</a>, bert@hubertnet.nl
+    </p>
+  </div>
+</template>
+
+
+{% endblock %}
+	
