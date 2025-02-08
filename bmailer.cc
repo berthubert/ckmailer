@@ -132,8 +132,6 @@ int main(int argc, char** argv)
   queue_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
   args.add_subparser(queue_command);
 
-  
-  
   SQLiteWriter db("bmail.sqlite3", {
       {"subscriptions",
        {
@@ -387,7 +385,7 @@ int main(int argc, char** argv)
 	nlohmann::json data;
 	data["weblink"] = "https://berthub.eu/ckmailer/msg/"+eget(q, "msgId");
 	data["unsubscribelink"] = "https://berthub.eu/ckmailer/manage.html?timsi="+eget(q, "timsi");
-	data["channelName"] = "Cloud Kootwijk";  // XXX hardvoded
+	data["channelName"] = "Cloud Kootwijk";  // XXX hardcoded
 
 	string textmsg = e.render(eget(q, "textversion"), data);
 	e.set_html_autoescape(true); // NOTE WELL!
@@ -400,7 +398,7 @@ int main(int argc, char** argv)
 	cout<<"Sending to "<< eget(q, "destination") <<endl;
 
 	vector<pair<string,string>> headers = {
-	  {"List-Unsubscribe", "<https://berthub.eu/ckmailer/unsubscribe/"+eget(q, "userId")+"/"+eget(q, "channelId")+">"},
+	  {"List-Unsubscribe", "<https://berthub.eu/ckmailer/unsubscribe/"+eget(q, "userId")+"/"+eget(q, "channelId")+">, <mailto:bmailer+"+eget(q, "queueId")+"@hubertnet.nl?subject="+eget(q, "userId")+"/"+eget(q, "channelId")+">"},
 	  {"List-Unsubscribe-Post", "List-Unsubscribe=One-Click"}};
 	
 	if(1)
@@ -447,6 +445,6 @@ int main(int argc, char** argv)
 
   sleep(10);
 
-  imapGetMessages(ComboAddress("10.0.0.2:993"), "bmailer", "aTh4faing1ai");
+  imapGetMessages(ComboAddress("10.0.0.2:993"), "bmailer", ""); 
   */
 }
