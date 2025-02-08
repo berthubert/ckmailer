@@ -1,6 +1,6 @@
 project('bmailer', 'cpp', default_options : ['cpp_std=c++20'])
 
-sqlitedep = dependency('sqlite3', version : '>=3.40')
+sqlitedep = dependency('sqlite3', version : '>=3.48')
 thread_dep = dependency('threads')
 json_dep = dependency('nlohmann_json')
 bcryptcpp_dep = dependency('bcryptcpp', static: true)
