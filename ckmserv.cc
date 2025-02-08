@@ -100,7 +100,7 @@ int main(int argc, char** argv)
     
     data["pagemeta"]["title"]="Sign-in or sign-on";
     data["og"]["title"] = "Sign-on or sign-on";
-    auto channels = tp.getLease()->queryT("select * from channels");
+    auto channels = tp.getLease()->queryT("select * from channels order by name");
     data["channels"] = packResultsJson(channels);
     
     res.set_content(e.render_file("./partials/signinon.html", data), "text/html");
@@ -118,7 +118,7 @@ int main(int argc, char** argv)
     string userId = eget(user[0], "id");
     decltype(user) channels;
     try {
-      channels = tp.getLease()->queryT("select channels.id, name,description,channelid not null as subscribed from channels left join subscriptions on subscriptions.channelId = channels.id and subscriptions.userId = ?",
+      channels = tp.getLease()->queryT("select channels.id, name,description,channelid not null as subscribed from channels left join subscriptions on subscriptions.channelId = channels.id and subscriptions.userId = ? order by name",
 				       {userId});
       cout<<"Got " << channels.size()<<" channels\n";
     }
@@ -163,12 +163,12 @@ int main(int argc, char** argv)
     }
     string userId = eget(users[0], "id");
     if(to=="subscribed") {
-      cout<<"Trying to subscribe "<<userId<<" to "<<channelId<<endl;
+      cout<<"Trying to subscribe "<<userId<<" "<<eget(users[0], "email") <<" to "<<channelId<<endl;
       tp.getLease()->addOrReplaceValue({{"userId", userId}, {"channelId", channelId}}, "subscriptions");
       j["newstate"]="subscribed";
     }
     else {
-      cout<<"Trying to unsubscribe "<<userId<<" to "<<channelId<<endl;
+      cout<<"Trying to unsubscribe "<<userId<<" " <<eget(users[0], "email")<<" from "<<channelId<<endl;
       tp.getLease()->queryT("delete from subscriptions where userid=? and channelid=?", {
 	  userId, channelId});
       j["newstate"]="unsubscribed";
@@ -189,30 +189,39 @@ int main(int argc, char** argv)
       return;
     }
     
-    cout << "Need to do something for email "<<email<<endl;
+    cout << "Possible new user "<<email<<endl;
     auto db = tp.getLease();
     auto user = db->queryT("select * from users where email=?", {email});
     string timsi;
+    bool newuser=false;
+    
     if(user.empty()) {
+      newuser=true;
       timsi = getLargeId();
       db->addValue({{"id", getLargeId()}, {"timsi", timsi}, {"email", email}}, "users");
     }
     else
       timsi = eget(user[0], "timsi");
-
-    string url="https://berthub.eu/ckmailer/manage.html?timsi="+timsi;
-    string textmsg="Om je CKMailer account te beheren, of je in te schrijven voor nieuwsbrieven,\nklik hier: "+url+" en ga verder in je webbrowser\n. Met vriendelijke groeten,\nCKMailer\n";
-
-    string htmlmsg="<p>Om je CKMailer account te beheren, of je in te schrijven voor nieuwsbrieven, klik hier <a href=\""+url+"\">"+url+"</a> en ga verder in je webbrowser.</p><p> Met vriendelijke groeten,<br>CKMailer</p>";
     
+    string url = "https://berthub.eu/ckmailer/manage.html?timsi=" +timsi;
+    string textmsg, htmlmsg;
+    if(newuser) {
+      textmsg="Om je account te activeren, klik hier: "+url+" en selecteer dan in de webbrowser\nwelke nieuwsbrieven je wil ontvangen. Met vriendelijke groeten,\nCKMailer\n";
+      htmlmsg="<p>Om je account te activeren, klik hier <a href=\""+url+"\">"+url+"</a> en selecteer dan in de webbrowser welke nieuwsbrieven je wil ontvangen.</p><p> Met vriendelijke groeten,<br>CKMailer</p>";
+    }
+    else {
+      textmsg="Om je account te beheren, klik hier: "+url+" en selecteer dan in de webbrowser\nwelke nieuwsbrieven je wil ontvangen. Met vriendelijke groeten,\nCKMailer\n";
+      htmlmsg="<p>Om je account te beheren, klik hier <a href=\""+url+"\">"+url+"</a> en selecteer dan in de webbrowser welke nieuwsbrieven je wil ontvangen.</p><p> Met vriendelijke groeten,<br>CKMailer</p>";
+    }
     
     sendEmail("10.0.0.2",  // system setting
 	      "bert@hubertnet.nl", // channel setting really
 	      email,        
-	      "[CKMailer] Account link", // subject
+	      newuser ? "Activatielink voor je account op berthub.eu/ckmailer" :
+	      "Beheer je account op berthub.eu/ckmailer" , // subject
 	      textmsg,
 	      htmlmsg);
-
+    
     j["ok"]=1;
     res.set_content(j.dump(), "application/json");
   });
@@ -232,7 +241,13 @@ int main(int argc, char** argv)
     res.set_content(buf, "text/html");
     res.status = 500; 
   });
-
+  
+  svr.set_pre_routing_handler([&tp](const auto& req, auto& res) {
+    fmt::print("Req: {} {} {} max-db {}\n", req.path, req.params, req.has_header("User-Agent") ? req.get_header_value("User-Agent") : "",
+	       (unsigned int)tp.d_maxout);
+    return httplib::Server::HandlerResponse::Unhandled;
+  });
+  
   
   svr.listen("0.0.0.0", 1848);
 }
