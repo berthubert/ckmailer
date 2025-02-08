@@ -118,7 +118,7 @@ int main(int argc, char** argv)
     string userId = eget(user[0], "id");
     decltype(user) channels;
     try {
-      channels = tp.getLease()->queryT("select channels.id, name,description,channelid not null as subscribed from channels left join subscriptions on subscriptions.channelId = channels.id and subscriptions.userId = ? order by name",
+      channels = tp.getLease()->queryT("select channels.id, name,description, channels.rowid rowid, channelid not null as subscribed from channels left join subscriptions on subscriptions.channelId = channels.id and subscriptions.userId = ? order by name",
 				       {userId});
       cout<<"Got " << channels.size()<<" channels\n";
     }

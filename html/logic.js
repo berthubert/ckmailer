@@ -39,6 +39,11 @@ async function changeSubscription(timsi, channelid, el)
 	console.log(data);
 	el.checked = data["newstate"]=="subscribed";
 	el.disabled=false;
+	let s = document.getElementById(channelid);
+	if(el.checked) 
+	    s.innerText="Ingeschreven!";
+	else
+	    s.innerText="Afgemeld!";
     }
     else {
 	console.log("error");
