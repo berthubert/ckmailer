@@ -31,11 +31,11 @@ string markdownToX(const std::string& input, const std::string& options)
     out.print("{}", input);
   }
   string command = "pandoc -f markdown " + options +" < " + tmp;
-  
+
   FILE* pfp = popen(command.c_str(), "r");
   if(!pfp)
     throw runtime_error("Unable to perform conversion for '"+command+"': "+string(strerror(errno)));
-  
+
   shared_ptr<FILE> fp(pfp, pclose);
   char buffer[4096];
   string ret;
@@ -60,11 +60,11 @@ string htmlToText(const std::string& input)
     out.print("{}", input);
   }
   string command = "links -html-numbered-links 1 -dump file://"+tmp;
-  
+
   FILE* pfp = popen(command.c_str(), "r");
   if(!pfp)
     throw runtime_error("Unable to perform conversion for '"+command+"': "+string(strerror(errno)));
-  
+
   shared_ptr<FILE> fp(pfp, pclose);
   char buffer[4096];
   string ret;
@@ -108,19 +108,19 @@ int main(int argc, char** argv)
   argparse::ArgumentParser channel_command("channel");
   channel_command.add_description("Add channels");
   channel_command.add_argument("commands").help("channel commands").default_value(vector<string>()).remaining();
-  
+
   args.add_subparser(channel_command);
 
   argparse::ArgumentParser user_command("user");
   user_command.add_description("Manage users");
   user_command.add_argument("commands").help("user commands").default_value(vector<string>()).remaining();
-  
+
   args.add_subparser(user_command);
 
   argparse::ArgumentParser msg_command("msg");
   msg_command.add_description("Manage msgs");
   msg_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
-  
+
   args.add_subparser(msg_command);
 
   argparse::ArgumentParser init_command("init");
@@ -162,12 +162,12 @@ int main(int argc, char** argv)
     db.queryT("create unique index if not exists subindex on subscriptions(userId, channelId)");
     db.queryT("delete from users where id=?", {userId});
     db.queryT("delete from channels where id=?", {channelId});
-    
+
   }catch(std::exception& e)
     {
       cout<< "Error during init: "<<e.what()<<endl;
     }
-  
+
   try {
     args.parse_args(argc, argv);
   }
@@ -209,7 +209,7 @@ int main(int argc, char** argv)
       for(auto& r : rows)
 	cout << 'u'<< r["rowid"] << '\t' << r["email"]<< '\t' << r["id"]<<'\n';
     }
-	
+
     else
       cout<<"Unknown command "<<cmds[0]<<endl;
   }
@@ -221,9 +221,9 @@ int main(int argc, char** argv)
 
       // no prefix, no postfix, no replacements
       string webVersion = markdownToWeb(markdown);
-      
+
       regex img_regex(R"(!\[\]\(([^)]*)\))");
-      auto begin = 
+      auto begin =
         std::sregex_iterator(markdown.begin(), markdown.end(), img_regex);
       auto end = std::sregex_iterator();
       struct item
@@ -242,10 +242,10 @@ int main(int argc, char** argv)
 	replaceSubstring(markdown, from, to.newlink);
       }
       //      cout<<"Markdown now:\n"<<markdown<<endl;
-      
+
       string textVersion = "Klik op {{weblink}} om deze mail op het web te bekijken\n\n"+markdownToText(markdown);
       textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}}\n";
-      
+
       string htmlVersion = markdownToHTML(markdown);
       htmlVersion += "\n<p>Klik <a href=\"{{unsubscribelink}}\">hier</a> om je af te melden van lijst {{channelName}}\n</p>";
 
@@ -274,7 +274,7 @@ int main(int argc, char** argv)
       data["weblink"] = "https://berthub.eu/ckmailer/msg/"+rows[0]["id"];
       data["unsubscribelink"] = "https://berthub.eu/ckmailer/unsub/TBC";
       data["channelName"] = "Cloud Kootwijk";
-      
+
       string textmsg = e.render(rows[0]["textversion"], data);
       e.set_html_autoescape(true); // NOTE WELL!
       string htmlmsg = e.render(rows[0]["htmlversion"], data);
@@ -284,17 +284,17 @@ int main(int argc, char** argv)
       vector<pair<string,string>> att;
       for(auto& r : attrows)
 	att.push_back({r["id"], r["filename"]});
-            
+
       sendEmail("10.0.0.2",  // system setting
 		"bert@hubertnet.nl", // channel setting really
-		dest,        
+		dest,
 		"test email", // subject
 		textmsg,
 		htmlmsg,
 		"",
 		"bmailer+"+getLargeId()+"@hubertnet.nl", att);
 
-      
+
     }
     else if(cmds[0]=="launch") {
       // launch m1 c2 "Welkom"
@@ -305,7 +305,7 @@ int main(int argc, char** argv)
       int64_t msgId = atoi(cmds[1].substr(1).c_str());
       int64_t channelId=atoi(cmds[2].substr(1).c_str());
       string subject = cmds[3];
-      
+
       auto msg = db.queryT("select * from msgs where rowid=?", {msgId});
       if(msg.empty()) {
 	cout <<"No such message m"<<msgId<<endl;
@@ -317,8 +317,8 @@ int main(int argc, char** argv)
 	return EXIT_FAILURE;
       }
       cout<<"Going to launch to c"<<channelId<<": "<<eget(channel[0], "name")<<endl;
-      
-      
+
+
       auto dests = db.queryT("select users.id userId, users.timsi timsi, channels.id channelId, users.email from users,subscriptions,channels where users.id=subscriptions.userId and subscriptions.channelId=channels.id and channels.rowid=?", {channelId});
 
       for(auto& d: dests) {
@@ -338,7 +338,7 @@ int main(int argc, char** argv)
       }
 
     }
-    else 
+    else
       cout<<"Unknown msg command "<<cmds[0]<<endl;
   }
   else if(args.is_subcommand_used(channel_command)) {
@@ -398,13 +398,14 @@ int main(int argc, char** argv)
 	cout<<"Sending to "<< eget(q, "destination") <<endl;
 
 	vector<pair<string,string>> headers = {
+	  {"List-ID", "\""+data["channelName"]+"\" <https://berthub.eu/ckmailer/>"},
 	  {"List-Unsubscribe", "<https://berthub.eu/ckmailer/unsubscribe/"+eget(q, "userId")+"/"+eget(q, "channelId")+">, <mailto:bmailer+"+eget(q, "queueId")+"@hubertnet.nl?subject="+eget(q, "userId")+"/"+eget(q, "channelId")+">"},
 	  {"List-Unsubscribe-Post", "List-Unsubscribe=One-Click"}};
-	
+
 	if(1)
 	sendEmail("10.0.0.2",  // system setting
 		  "bert@hubertnet.nl", // channel setting really
-		  eget(q, "destination"),        
+		  eget(q, "destination"),
 		  eget(q, "subject"), // subject
 		  textmsg,
 		  htmlmsg,
@@ -414,17 +415,17 @@ int main(int argc, char** argv)
 	db.queryT("update queue set sent=1 where id=?", {eget(q, "queueId")});
 	sleep(1);
       }
-      
+
     }
   }
-  /*  
+  /*
   string smtpserver = args.get<string>("--smtp-server");
   string fromaddr = args.get<string>("--sender-email");
   if(!smtpserver.empty() && fromaddr.empty()) {
     fmt::print("An smtp server has been defined, but no sender email address (--sender-email)\n");
     std::exit(1);
   }
-  
+
 
   nlohmann::json data = nlohmann::json::object();
   data["data"] = acts;
@@ -435,16 +436,16 @@ int main(int argc, char** argv)
     data["og"]["title"] = "Activiteiten";
     data["og"]["description"] = "Activiteiten Tweede Kamer";
     data["og"]["imageurl"] = "";
-    
+
     res.set_content(e.render_file("./partials/activiteiten.html", data), "text/html");
   */
 
-  
+
   /*
   sendEmail("10.0.0.2", "bmailer@hubertnet.nl", "bmailer@hubertnet.nl", "test email", "Test 123", "<html>test 123</html>", "bert@hubertnet.nl", "bmailer+"+getLargeId()+"@hubertnet.nl");
 
   sleep(10);
 
-  imapGetMessages(ComboAddress("10.0.0.2:993"), "bmailer", ""); 
+  imapGetMessages(ComboAddress("10.0.0.2:993"), "bmailer", "");
   */
 }
