@@ -248,6 +248,11 @@ int main(int argc, char** argv)
     return httplib::Server::HandlerResponse::Unhandled;
   });
   
+  svr.set_socket_options([](socket_t sock) {
+    int yes = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+	       reinterpret_cast<const void *>(&yes), sizeof(yes));
+  });
   
   svr.listen("0.0.0.0", 1848);
 }

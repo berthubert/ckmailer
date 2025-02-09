@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block div %}
+x-data="{
+state: 0,
+email: ''
+}"
+{% endblock %}
+
+{% block javascript %}
+{{ super() }}
+{% endblock %}
+
+{% block header %}
+
+<h1>Unsubscribe {{email}} from {{channelName}}</h1>
+{% endblock %}
+
+{% block main %}
+{% if subscribed %}
+<p>
+  Click here to unsubscribe:
+</p>
+
+<input type="button" value="Unsubscribe from {{channelName}}"
+       @click='doPostUnsubscribe("{{userId}}", "{{channelId}}", $el)'>
+</input>
+<span id="message"></span>
+
+{% else %}
+User is not subscribed, so no need to unsubscribe.
+
+{% endif %}
+
+
+{% endblock %}
+	
