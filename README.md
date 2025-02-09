@@ -13,25 +13,20 @@ specific email address, or to a channel.
 Messages are exclusively generated using Markdown. To this is added an
 unsubscribe link.
 
+# Status
+"works for me", there is no real documentation, you'll likely struggle to
+unststand how this works for now.
+
+# Requirements
+
+Very new pandoc.
+
+Links browser.
+
+
+
 # Roadmap
 Initially we start with a command line tool. 
-
-$ bmail channel create "Tech updates"
-Created channel c1
-
-$ bmail mail create bertmail.md
-Imported email e1
-
-$ bmail mail send e1 bert@hubertnet.nl
-sent
-
-$ bmail channel add-user bert.hubert@example.com c1
-created user bert.hubert@example.com
-added user bert.hubert@ecample.com to "Tech updates" (c1)
-
-$ bmail send e1 c1
-Sent email e1 to channel c1
-0 immediate errors
 
 # Concept
 We send mail to our smart host. We record immediate problems.
