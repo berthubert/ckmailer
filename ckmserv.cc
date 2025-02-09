@@ -139,6 +139,40 @@ int main(int argc, char** argv)
     res.set_content(e.render_file("./partials/manage.html", data), "text/html");
   });
 
+  svr.Get(R"(/unsubscribe.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
+    string userId = req.get_param_value("userId");
+    string channelId = req.get_param_value("channelId");
+
+    auto channel = tp.getLease()->queryT("select name from channels where id=?", {channelId});
+    auto user = tp.getLease()->queryT("select email from users where id=?", {userId});
+    if(user.empty()) {
+      res.status = 404;
+      res.set_content(fmt::format("Could not find user {}\n", userId), "text/plain");
+      return;
+    }
+    if(channel.empty()) {
+      res.status = 404;
+      res.set_content(fmt::format("Could not find channel {}\n", channelId), "text/plain");
+      return;
+    }
+    
+    
+    nlohmann::json data = nlohmann::json::object();
+    inja::Environment e;
+    e.set_html_autoescape(true); 
+    data["userId"]=userId;
+    data["channelId"] = channelId;
+    data["pagemeta"]["title"]="Unsubscribe";
+    data["og"]["title"] = "Unsubscribe";
+    auto subscription = tp.getLease()->queryT("select * from subscriptions where userId=? and channelId=?", {userId, channelId});
+    data["subscribed"] = !subscription.empty();
+    data["channelName"] = eget(channel.at(0), "name");
+    data["email"] = eget(user.at(0), "email");
+
+    
+    res.set_content(e.render_file("./partials/unsubscribe.html", data), "text/html");
+  });
+
   svr.Post(R"(/unsubscribe/:userid/:channel)", [&tp](const httplib::Request &req, httplib::Response &res) {
     string userId = req.path_params.at("userid");
     string channelId = req.path_params.at("channel");
@@ -147,6 +181,27 @@ int main(int argc, char** argv)
     cout<<"Just unsubscribed user id "<<userId<<" from channel "<<channelId<<endl;
   });
 
+  // we get this when people *click* on the automated POST unsubscribe link..
+  svr.Get(R"(/unsubscribe/:userid/:channel)", [&tp](const httplib::Request &req, httplib::Response &res) {
+    string userId = req.path_params.at("userid");
+    string channelId = req.path_params.at("channel");
+
+    auto channel = tp.getLease()->queryT("select name from channels where id=?", {channelId});
+    auto user = tp.getLease()->queryT("select email from users where id=?", {userId});
+    if(user.empty()) {
+      res.status = 404;
+      res.set_content(fmt::format("Could not find user {}\n", userId), "text/plain");
+      return;
+    }
+    if(channel.empty()) {
+      res.status = 404;
+      res.set_content(fmt::format("Could not find channel {}\n", channelId), "text/plain");
+      return;
+    }
+
+    res.status = 301;
+    res.set_header("Location", "../../unsubscribe.html?userId="+userId+"&channelId="+channelId);
+  });
   
   svr.Post(R"(/change-subscription)", [&tp](const httplib::Request &req, httplib::Response &res) {
     string timsi = req.get_file_value("timsi").content;

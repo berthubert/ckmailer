@@ -50,3 +50,18 @@ async function changeSubscription(timsi, channelid, el)
     }
     return false;
 }
+
+
+async function doPostUnsubscribe(userid, channelid, el)
+{
+    const response = await fetch(`unsubscribe/${userid}/${channelid}`, { method: "POST"});
+    if (response.ok === true) {
+	let s = document.getElementById("message");
+	s.innerText="Unsubscribed!";
+	el.disabled=true;
+    }
+    else {
+	console.log("error");
+    }
+    return false;
+}
