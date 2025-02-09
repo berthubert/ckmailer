@@ -297,10 +297,10 @@ int main(int argc, char** argv)
       //      cout<<"Markdown now:\n"<<markdown<<endl;
       
       string textVersion = "Klik op {{weblink}} om deze mail op het web te bekijken\n\n"+markdownToText(markdown);
-      textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}} of je abonnementen te beheren\n";
+      textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}} of om je abonnementen te beheren\n";
       
       string htmlVersion = markdownToHTML(markdown);
-      htmlVersion += "\n<p>Klik <a href=\"{{unsubscribelink}}\">hier</a> om je af te melden van lijst {{channelName}} of je abonnementen te beheren\n</p>";
+      htmlVersion += "\n<p>Klik <a href=\"{{unsubscribelink}}\">hier</a> om je af te melden van lijst {{channelName}} of om je abonnementen te beheren\n</p>";
 
       string id = getLargeId();
       db.addValue({{"id", id}, {"markdown", markdown}, {"textversion", textVersion}, {"htmlversion", htmlVersion}, {"webversion", webVersion}}, "msgs");
