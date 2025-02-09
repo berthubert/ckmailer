@@ -23,7 +23,7 @@ int main(int argc, char** argv)
   argparse::ArgumentParser args("ckmserv", "0.0");
   args.add_argument("--smtp-server").help("IP address of SMTP smart host. If empty, no mail will get sent").default_value("");
   
-  SQLiteWriter db("bmail.sqlite3", { {"users", {{"email", "collate nocase"}}}});
+  SQLiteWriter db("ckmailer.sqlite3", { {"users", {{"email", "collate nocase"}}}});
   try {
     db.queryT("create unique index if not exists emailidx on users(email)");
   }catch(...)
@@ -43,9 +43,9 @@ int main(int argc, char** argv)
   svr.set_mount_point("/", "./html/");
   svr.set_keep_alive_max_count(1); // Default is 5
   svr.set_keep_alive_timeout(1);  // Default is 5
-  ThingPool<SQLiteWriter> tp("bmail.sqlite3");
+  ThingPool<SQLiteWriter> tp("ckmailer.sqlite3");
 
-  SQLiteWriter userdb("bmail.sqlite3", {
+  SQLiteWriter userdb("ckmailer.sqlite3", {
       {"subscriptions",
        {
 	 {"userId", "NOT NULL REFERENCES users(id) ON DELETE CASCADE"},

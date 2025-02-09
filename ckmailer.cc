@@ -146,7 +146,7 @@ int main(int argc, char** argv)
   args.add_subparser(imap_command);
 
   
-  SQLiteWriter db("bmail.sqlite3", {
+  SQLiteWriter db("ckmailer.sqlite3", {
       {"subscriptions",
        {
 	 {"userId", "NOT NULL REFERENCES users(id) ON DELETE CASCADE"},
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
     if(!args.is_used("--"+name)) {
       auto rows = db.queryT("select value from settings where name=?", {name});
       if(!rows.empty()) {
-	cout<<"Retrieved "<<name<<" from database"<<endl;
+	//	cout<<"Retrieved "<<name<<" from database"<<endl;
 	settings[name] = eget(rows[0], "value");
       }
       

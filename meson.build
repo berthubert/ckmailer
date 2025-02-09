@@ -1,4 +1,4 @@
-project('bmailer', 'cpp', default_options : ['cpp_std=c++20'])
+project('ckmailer', 'cpp', default_options : ['cpp_std=c++20'])
 
 sqlitedep = dependency('sqlite3', version : '>=3.48')
 thread_dep = dependency('threads')
@@ -18,7 +18,7 @@ vcs_ct=vcs_tag(command: ['git', 'describe', '--tags', '--always', '--dirty', '--
 
 vcs_dep= declare_dependency (sources: vcs_ct)
 
-executable('bmailer', 'bmailer.cc',  'support.cc', 'nonblocker.cc', 'imap.cc', 
+executable('ckm', 'ckmailer.cc',  'support.cc', 'nonblocker.cc', 'imap.cc', 
 	dependencies: [sqlitedep, json_dep, fmt_dep, simplesockets_dep, cpphttplib, sqlitewriter_dep,
 	argparse_dep, vcs_dep])
 
