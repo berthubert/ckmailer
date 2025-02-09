@@ -5,6 +5,7 @@
 #include <fmt/chrono.h>
 #include <fmt/ranges.h>
 #include <openssl/x509v3.h>
+#include "support.hh"
 
 // https://www.atmail.com/blog/imap-101-manual-imap-sessions/
 // https://nickb.dev/blog/introduction-to-imap/
@@ -13,16 +14,6 @@
 #include <mutex>
 
 using namespace std;
-
-bool getLine(FILE* fp, std::string& line)
-{
-  char buf[256]={};
-  if(fgets(buf, sizeof(buf)-1, fp) == nullptr)
-    return false;
-  line = buf;
-  return true;
-}
-
 // empty string == EOF
 string sslGetLine(SSL* ssl)
 {
@@ -158,8 +149,48 @@ void SSLHelper::checkConnection(const std::string& host, int minCertDays)
 }
 
 
-string imapGetMessages(const ComboAddress& server, const std::string& user, const std::string& password)
+static auto scommand(unsigned int &counter, SSLHelper& sh, const std::string& cmd)
 {
+  vector<string> lines;
+  string line="A"+to_string(counter++)+" " + cmd+"\r\n";
+  //    fmt::print("Sending {}", line);
+  SSL_write(sh.ssl, line.c_str(), line.size());
+  string resp;
+  do {
+    resp = sslGetLine(sh.ssl);
+    //      fmt::print("Response is {}", resp);
+      if(lines.empty()) {
+        auto pos = resp.rfind('{');
+        if(pos != string::npos) {
+          int bytes = atoi(&resp.at(pos+1));
+	  //	  fmt::print("Going to read {} bytes\n", bytes);
+          vector<char> c(bytes);
+	  int left = bytes;
+	  string line;
+	  do {
+	    int received = SSL_read(sh.ssl, &c.at(0), left);
+	    if(received < 0)
+	      throw std::runtime_error("Error from SSL_read");
+	    if(!received)
+	      throw std::runtime_error("EOF from SSL_read");
+	    //	    fmt::print("Got {} bytes..\n", received);
+	    line+=(string(&c.at(0), received));
+	    left -= received;
+	  }while(left);
+          lines.push_back(line);
+          SSL_read(sh.ssl, &c.at(0), 3); // ")\r\n"
+          continue;
+        }
+      }
+      lines.push_back(resp);
+  }while(!resp.empty() && resp[0]=='*');
+  return lines;
+}
+
+std::vector<pair<uint32_t, std::unordered_map<string,string>>> imapGetMessages(const ComboAddress& server, const std::string& user, const std::string& password)
+{
+  std::vector<pair<uint32_t, std::unordered_map<string,string>>> ret;
+  
   string servername;
   NonBlocker nb(server, 10);
 
@@ -175,106 +206,86 @@ string imapGetMessages(const ComboAddress& server, const std::string& user, cons
     sh.checkConnection(checkname, 0); // does 0 work??
 
   string resp = sslGetLine(sh.ssl);
-
-  int counter=0;
+  cout<<resp<<endl;
+  unsigned int counter=0;
   vector<string> lines;
-  auto scommand = [&](const std::string& cmd) {
-
-    string line="A"+to_string(counter++)+" " + cmd+"\r\n";
-    //    fmt::print("Sending {}", line);
-    SSL_write(sh.ssl, line.c_str(), line.size());
-    lines.clear();
-    do {
-      resp = sslGetLine(sh.ssl);
-      //fmt::print("Response is {}", resp);
-      if(lines.empty()) {
-        auto pos = resp.rfind('{');
-        if(pos != string::npos) {
-          int bytes = atoi(&resp.at(pos+1));
-          vector<char> c(bytes);
-          SSL_read(sh.ssl, &c.at(0), bytes);
-          lines.push_back(string(&c.at(0), bytes));
-          SSL_read(sh.ssl, &c.at(0), 3); // ")\r\n"
-          continue;
-        }
-      }
-      lines.push_back(resp);
-    }while(!resp.empty() && resp[0]=='*');
-  };
 
   
-  scommand("login "+user+" "+password);
+  scommand(counter, sh, "login "+user+" "+password);
   cout<<"Logged in!"<<endl;
-  scommand("namespace");
-  scommand(R"(select "INBOX")");
+  scommand(counter,sh,"namespace");
+  scommand(counter, sh, R"(select "INBOX")");
 
-  scommand("UID FETCH 1:* (FLAGS)");
+  // what does the 1: do??
+  lines = scommand(counter, sh, "UID FETCH 1:* (FLAGS)");
   fmt::print("{}\n", lines);
 
-  scommand("FETCH 9 body[header]");
-  fmt::print("{}\n", lines);
-  
-  scommand(R"(uid search subject "Simplomon test message")");
-  /*
-  * SEARCH 171430 171431 171432 171433 171434 171435
-a9 OK Search completed (0.045 + 0.000 + 0.044 secs).
-  */
+  set<unsigned int> uids;
+  for(const auto& l : lines) {
+    if(l.empty()) continue;
+    if(auto pos = l.find("(UID "); pos != string::npos)
+      uids.insert(atol(&l.at(pos+4)));
+  }
+  fmt::print("Had the following uids: {}\n", uids);
+  for(auto i : uids) {
+    
+    lines = scommand(counter, sh, "UID FETCH "+to_string(i)+" body[header]");
+    if(lines.empty())
+      continue;
+    auto split = splitString(lines[0], "\r\n");
 
-  peg::parser p(R"(
-LINE <- '* SEARCH' (' ' UID)*'\r\n'?
-UID <- (![ \r\n] .)+
-)");
-
-  if(!(bool)p)
-    throw runtime_error("Error in grammar");
-  
-  p["UID"] = [](const peg::SemanticValues& vs) {
-    return vs.token_to_string();
-  };
-
-  p["LINE"] = [](const peg::SemanticValues& vs) {
-    return vs.transform<string>();
-  };
-  vector<string> uids;
-  p.parse(lines[0], uids);
-
-  fmt::print("Got {} uids: {}\n", uids.size(), uids);
-
-  /*
-n uid fetch 171446 BODY[TEXT]
-* 13508 FETCH (UID 171446 FLAGS (\Seen) BODY[TEXT] {58}
-hallo
-)
-en gaat het nu door dan?
-zou wel leuk zijn
-)
-)
-n OK Fetch completed (0.026 + 0.000 + 0.025 secs).
-  */
-  vector<string> todel;
-  time_t freshest = 0;
-  for(const auto& uid : uids) {
-    scommand("uid fetch "+uid+" BODY.PEEK[TEXT]");
-    //    fmt::print("lines: {}\n", lines);
-    if(!lines.empty()) {
-      time_t then = atoi(lines[0].c_str());
-      if(freshest < then)
-        freshest = then;
-      time_t age = time(nullptr) - then;
-      //      fmt::print("Age is {} seconds\n", age);
-      if(age > 300)
-        todel.push_back(uid);
+    std::unordered_map<string,string> hdrs;
+    for(const auto& l : split) {
+      if(l.find("Subject: ") == 0) {
+	hdrs["Subject"] = l.substr(9);
+      }
     }
+    ret.push_back({i, hdrs});
   }
-
-  for(const auto& del : todel) {
-    scommand("uid store "+del+" +FLAGS (\\Deleted)");
-  }
-  if(!todel.empty())
-    scommand("expunge");
   
-  if(time(nullptr) - freshest > 300) {
-    return "No recent sentinel message found";
+  return ret;
+}
+
+
+void imapMove(const ComboAddress& server, const std::string& user, const std::string& password, const std::set<uint32_t>& uids)
+{
+  if(uids.empty())
+    return;
+  std::vector<pair<uint32_t, std::unordered_map<string,string>>> ret;
+  
+  string servername;
+  NonBlocker nb(server, 10);
+
+  SSLHelper sh;
+  sh.attachFD(nb);
+
+  sh.initTLS();
+  //  sh.printDetails();
+  string checkname = servername.empty() ? "" : servername;
+  if(!checkname.empty())
+    checkname.resize(checkname.size()-1);
+  if(!checkname.empty())
+    sh.checkConnection(checkname, 0); // does 0 work??
+
+  string resp = sslGetLine(sh.ssl);
+  cout<<resp<<endl;
+  
+  unsigned int counter=0;
+
+  auto lines = scommand(counter, sh, "login "+user+" "+password);
+  fmt::print("Logged in: {}\n", lines);
+
+  scommand(counter,sh,"namespace");
+  scommand(counter, sh, R"(select "INBOX")");
+  lines = scommand(counter, sh, "CREATE INBOX.ProcessedByCKMailer");
+  fmt::print("Got creating folder: {}\n", lines);
+
+  string str;
+  for(const auto& uid : uids) {
+    if(!str.empty()) str.append(",");
+    str += to_string(uid);
   }
-  return "";
+  
+  lines =scommand(counter, sh, "UID MOVE " + str+ " INBOX.ProcessedByCKMailer");
+  fmt::print("Got moving message: {}\n", lines);
 }

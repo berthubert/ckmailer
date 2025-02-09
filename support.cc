@@ -7,6 +7,7 @@
 #include <vector>
 #include <random>
 #include <sclasses.hh>
+#include <regex>
 #include "base64.hpp"
 using namespace std;
 
@@ -85,6 +86,21 @@ string toQuotedPrintable(const std::string& in)
   out += line;
   return out;
 }
+
+std::vector<std::string> splitString(const std::string& str, const std::string& delimiter) {
+    std::vector<std::string> tokens;
+    std::regex regex(delimiter);  // Create regex from the delimiter string
+    std::sregex_token_iterator it(str.begin(), str.end(), regex, -1);
+    std::sregex_token_iterator end;
+
+    while (it != end) {
+        tokens.push_back(*it);
+        ++it;
+    }
+
+    return tokens;
+}
+
 
 void replaceSubstring(std::string &originalString, const std::string &searchString, const std::string &replaceString) {
   size_t pos = originalString.find(searchString);

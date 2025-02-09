@@ -6,6 +6,7 @@
 #include "inja.hpp"
 #include "argparse/argparse.hpp"
 #include <regex>
+#include <signal.h>
 using namespace std;
 
 /*
@@ -101,10 +102,17 @@ string markdownToWeb(const std::string& input)
 
 int main(int argc, char** argv)
 {
+  signal(SIGPIPE, SIG_IGN); // every TCP application needs this
   argparse::ArgumentParser args("bmailer", "0.0");
-  args.add_argument("--smtp-server").help("IP address of SMTP smart host. If empty, no mail will get sent").default_value("");
-  args.add_argument("--sender-email").help("From address of email we send").default_value("");
-
+  map<string, string> settings;
+  args.add_argument("--smtp-server").help("IP address of SMTP smart host. If empty, no mail will get sent").default_value("").store_into(settings["smtp-server"]);
+  args.add_argument("--imap-server").help("IMAP server to query").default_value("").store_into(settings["imap-server"]);
+  args.add_argument("--imap-user").help("IMAP server to query").default_value("").store_into(settings["imap-user"]);
+  args.add_argument("--imap-password").help("IMAP server to query").default_value("").store_into(settings["imap-password"]);
+    
+  args.add_argument("--sender-email").help("From address of email we send").default_value("").store_into(settings["sender-email"]);
+  args.add_argument("--save-settings").help("store settings from this command line to the database").flag();
+  
   argparse::ArgumentParser channel_command("channel");
   channel_command.add_description("Add channels");
   channel_command.add_argument("commands").help("channel commands").default_value(vector<string>()).remaining();
@@ -132,6 +140,12 @@ int main(int argc, char** argv)
   queue_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
   args.add_subparser(queue_command);
 
+  argparse::ArgumentParser imap_command("imap");
+  imap_command.add_description("Imap management");
+  imap_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
+  args.add_subparser(imap_command);
+
+  
   SQLiteWriter db("bmail.sqlite3", {
       {"subscriptions",
        {
@@ -149,6 +163,11 @@ int main(int argc, char** argv)
        {
 	 {"id", "PRIMARY KEY"}
        }
+      },
+      {"settings",
+	  {
+	    {"name", "PRIMARY KEY"}
+	  }
       }
     } );
 
@@ -159,6 +178,9 @@ int main(int argc, char** argv)
     db.addValue({{"id", channelId}, {"name", "naam"}}, "channels");
     db.addOrReplaceValue({{"userId", userId}, {"channelId", channelId}}, "subscriptions");
 
+    db.addOrReplaceValue({{"name", ""}, {"value", ""}}, "settings");
+    db.queryT("delete from settings where name=''");
+    
     db.queryT("create unique index if not exists subindex on subscriptions(userId, channelId)");
     db.queryT("delete from users where id=?", {userId});
     db.queryT("delete from channels where id=?", {channelId});
@@ -175,7 +197,38 @@ int main(int argc, char** argv)
     std::cout << err.what() << std::endl << args;
     std::exit(1);
   }
+  
+  if (args["--save-settings"] == true) {
+    auto doSetting = [&](const std::string& name) {
+      if(args.is_used("--"+name)) {
+	string value = settings[name];
+	cout<<"Storing --"<<name<< " as "<< value <<endl;
+	db.addOrReplaceValue({{"name", name}, {"value", value}}, "settings");
+      }
+    };
+    for(auto& [name, value] : settings) {
+      doSetting(name);
+    }
 
+    db.queryT("delete from settings where value=''");
+    return EXIT_SUCCESS;
+  }
+  
+  auto getSetting = [&](const std::string& name) {
+    if(!args.is_used("--"+name)) {
+      auto rows = db.queryT("select value from settings where name=?", {name});
+      if(!rows.empty()) {
+	cout<<"Retrieved "<<name<<" from database"<<endl;
+	settings[name] = eget(rows[0], "value");
+      }
+      
+    }
+  };
+  for(auto& [name, value] : settings) {
+    getSetting(name);
+  }
+  
+  fmt::print("settings: {}\n", settings);
   if(args.is_subcommand_used(user_command)) {
     auto cmds = user_command.get<std::vector<std::string>>("commands");
     fmt::print("Got user commands: {}\n", cmds);
@@ -222,7 +275,7 @@ int main(int argc, char** argv)
       // no prefix, no postfix, no replacements
       string webVersion = markdownToWeb(markdown);
       
-      regex img_regex(R"(!\[\]\(([^)]*)\))");
+      regex img_regex(R"(!\[\]\(([^)]*)\))");  // XXX needs to be adjusted for captions!!
       auto begin = 
         std::sregex_iterator(markdown.begin(), markdown.end(), img_regex);
       auto end = std::sregex_iterator();
@@ -272,8 +325,8 @@ int main(int argc, char** argv)
       inja::Environment e;
       e.set_html_autoescape(false); // NOTE WELL!
       data["weblink"] = "https://berthub.eu/ckmailer/msg/"+rows[0]["id"];
-      data["unsubscribelink"] = "https://berthub.eu/ckmailer/unsub/TBC";
-      data["channelName"] = "Cloud Kootwijk";
+      data["unsubscribelink"] = "NA";
+      data["channelName"] = "NA";
       
       string textmsg = e.render(rows[0]["textversion"], data);
       e.set_html_autoescape(true); // NOTE WELL!
@@ -285,7 +338,7 @@ int main(int argc, char** argv)
       for(auto& r : attrows)
 	att.push_back({r["id"], r["filename"]});
             
-      sendEmail("10.0.0.2",  // system setting
+      sendEmail(settings["smtp-server"],  // system setting
 		"bert@hubertnet.nl", // channel setting really
 		dest,        
 		"test email", // subject
@@ -293,8 +346,6 @@ int main(int argc, char** argv)
 		htmlmsg,
 		"",
 		"bmailer+"+getLargeId()+"@hubertnet.nl", att);
-
-      
     }
     else if(cmds[0]=="launch") {
       // launch m1 c2 "Welkom"
@@ -318,7 +369,6 @@ int main(int argc, char** argv)
       }
       cout<<"Going to launch to c"<<channelId<<": "<<eget(channel[0], "name")<<endl;
       
-      
       auto dests = db.queryT("select users.id userId, users.timsi timsi, channels.id channelId, users.email from users,subscriptions,channels where users.id=subscriptions.userId and subscriptions.channelId=channels.id and channels.rowid=?", {channelId});
 
       for(auto& d: dests) {
@@ -330,13 +380,14 @@ int main(int argc, char** argv)
 	    {"sent", false},
 	    {"bounced", false},
 	    {"channelId", eget(d, "channelId")},
+	    {"channelName", eget(channel[0], "name")},
 	    {"destination", eget(d, "email")},
 	    {"userId", eget(d, "userId")},
 	    {"timsi", eget(d, "timsi")},
 	    {"timestamp", time(0)}
 	  }, "queue");
       }
-
+      db.addValue({{"channelId", eget(channel[0], "id")}, {"msgId", eget(msg[0], "id")}, {"timestamp", time(0)}, {"subject", subject}}, "launches");
     }
     else 
       cout<<"Unknown msg command "<<cmds[0]<<endl;
@@ -377,7 +428,7 @@ int main(int argc, char** argv)
       }
     }
     else if(cmds[0] == "run") {
-      auto queued = db.queryT("select queue.id queueId, msgId, channelId, timsi, userId, destination, subject, textversion, htmlversion from queue,msgs where sent=0 and msgs.id=queue.msgId");
+      auto queued = db.queryT("select queue.id queueId, msgId, channelId, channelName, timsi, userId, destination, subject, textversion, htmlversion from queue,msgs where sent=0 and msgs.id=queue.msgId");
 
       for(auto& q: queued) {
 	inja::Environment e;
@@ -385,7 +436,7 @@ int main(int argc, char** argv)
 	nlohmann::json data;
 	data["weblink"] = "https://berthub.eu/ckmailer/msg/"+eget(q, "msgId");
 	data["unsubscribelink"] = "https://berthub.eu/ckmailer/manage.html?timsi="+eget(q, "timsi");
-	data["channelName"] = "Cloud Kootwijk";  // XXX hardcoded
+	data["channelName"] = eget(q, "channelName");
 
 	string textmsg = e.render(eget(q, "textversion"), data);
 	e.set_html_autoescape(true); // NOTE WELL!
@@ -399,11 +450,13 @@ int main(int argc, char** argv)
 
 	vector<pair<string,string>> headers = {
 	  {"List-Unsubscribe", "<https://berthub.eu/ckmailer/unsubscribe/"+eget(q, "userId")+"/"+eget(q, "channelId")+">, <mailto:bmailer+"+eget(q, "queueId")+"@hubertnet.nl?subject="+eget(q, "userId")+"/"+eget(q, "channelId")+">"},
-	  {"List-Unsubscribe-Post", "List-Unsubscribe=One-Click"}};
+	  {"List-Unsubscribe-Post", "List-Unsubscribe=One-Click"},
+	  {"List-ID", eget(q, "channelName") + " <"+eget(q, "channelId")+">"}
+	};
 	
 	if(1)
-	sendEmail("10.0.0.2",  // system setting
-		  "bert@hubertnet.nl", // channel setting really
+	sendEmail(settings["smtp-server"],  // system setting
+		  settings["sender-email"], // channel setting really
 		  eget(q, "destination"),        
 		  eget(q, "subject"), // subject
 		  textmsg,
@@ -414,37 +467,31 @@ int main(int argc, char** argv)
 	db.queryT("update queue set sent=1 where id=?", {eget(q, "queueId")});
 	sleep(1);
       }
-      
     }
   }
-  /*  
-  string smtpserver = args.get<string>("--smtp-server");
-  string fromaddr = args.get<string>("--sender-email");
-  if(!smtpserver.empty() && fromaddr.empty()) {
-    fmt::print("An smtp server has been defined, but no sender email address (--sender-email)\n");
-    std::exit(1);
-  }
-  
-
-  nlohmann::json data = nlohmann::json::object();
-  data["data"] = acts;
-    inja::Environment e;
-    e.set_html_autoescape(false); // NOTE WELL!
-
-    data["pagemeta"]["title"]="Activiteiten – OpenTK";
-    data["og"]["title"] = "Activiteiten";
-    data["og"]["description"] = "Activiteiten Tweede Kamer";
-    data["og"]["imageurl"] = "";
+  else if(args.is_subcommand_used(imap_command)) {
     
-    res.set_content(e.render_file("./partials/activiteiten.html", data), "text/html");
-  */
-
-  
-  /*
-  sendEmail("10.0.0.2", "bmailer@hubertnet.nl", "bmailer@hubertnet.nl", "test email", "Test 123", "<html>test 123</html>", "bert@hubertnet.nl", "bmailer+"+getLargeId()+"@hubertnet.nl");
-
-  sleep(10);
-
-  imapGetMessages(ComboAddress("10.0.0.2:993"), "bmailer", ""); 
-  */
+    auto cmds = imap_command.get<std::vector<std::string>>("commands");
+    fmt::print("Got imap commands: {}\n", cmds);
+    auto uhdrs = imapGetMessages(ComboAddress(settings["imap-server"], 993),
+				 settings["imap-user"],
+				 settings["imap-password"]);
+    fmt::print("Got this from imap:\n{}\n", uhdrs);
+    set<uint32_t> handled;
+    for(auto& [uid, hdrs]: uhdrs) {
+      if(hdrs.count("Subject")) {
+	auto s = splitString(hdrs["Subject"], "/");
+	if(s.size() == 2) {
+	  auto hits = db.queryT("select * from subscriptions where userId=? and channelId=?",
+				{s[0], s[1]});
+	  cout<<"Hits for unsubscribe of "<<s[0]<<" / " <<s[1]<<" " << hits.size()<<endl;
+	  db.queryT("delete from subscriptions where userId=? and channelId=?",
+		    {s[0], s[1]});
+	  handled.insert(uid);
+	}
+      }
+    }
+    
+    imapMove(ComboAddress(settings["imap-server"], 993), "bmailer", settings["imap-password"], handled);
+  }
 }
