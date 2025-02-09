@@ -173,6 +173,33 @@ int main(int argc, char** argv)
     res.set_content(e.render_file("./partials/unsubscribe.html", data), "text/html");
   });
 
+  svr.Get(R"(/channel.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
+    string channelId = req.get_param_value("channelId");
+
+    auto channel = tp.getLease()->queryT("select * from channels where id=?", {channelId});
+    if(channel.empty()) {
+      res.status = 404;
+      res.set_content(fmt::format("Could not find channel {}\n", channelId), "text/plain");
+      return;
+    }
+    nlohmann::json data = nlohmann::json::object();
+    inja::Environment e;
+    e.set_html_autoescape(true); 
+    data["channelId"] = channelId;
+    data["pagemeta"]["title"]="Channel information";
+    data["og"]["title"] = "Channel information";
+    auto subscription = tp.getLease()->queryT("select * from subscriptions where channelId=?", {channelId});
+    data["numsubscribers"] =subscription.size();
+    data["channelName"] = eget(channel.at(0), "name");
+    data["channelDescription"] = eget(channel.at(0), "description");
+
+    // make links to all posts!
+    data["posts"] = packResultsJson(tp.getLease()->queryT("select * from launches where channelId=? order by timestamp desc", {channelId}));
+    
+    res.set_content(e.render_file("./partials/channel.html", data), "text/html");
+  });
+
+  
   svr.Post(R"(/unsubscribe/:userid/:channel)", [&tp](const httplib::Request &req, httplib::Response &res) {
     string userId = req.path_params.at("userid");
     string channelId = req.path_params.at("channel");

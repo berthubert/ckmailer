@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block div %}
+x-data="{
+state: 0,
+email: ''
+}"
+{% endblock %}
+
+{% block javascript %}
+{{ super() }}
+{% endblock %}
+
+{% block header %}
+
+<h1>{{channelName}}</h1>
+{% endblock %}
+
+{% block main %}
+<h2>"{{channelDescription}}"</h2>
+<p>
+  Er zijn nu {{numsubscribers}} email adressen geabonneerd op deze lijst.
+</p>
+<h2>Verzonden berichten</h2>
+<ul>
+  {% for p in posts %}
+  <li><span x-text="d=new Date({{p.timestamp}}000); return d.toLocaleString('nl-NL');"></span>: <a href="msg/{{p.msgId}}">{{p.subject}}</a></li>
+  {% endfor %}
+</ul>
+  
+{% endblock %}
+	

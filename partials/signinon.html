@@ -23,7 +23,7 @@ email: ''
     </p>
     <ul>
       {% for c in channels %}
-      <li><b>{{c.name}}</b>: {{c.description}}</li>
+      <li><b><a href="channel.html?channelId={{c.id}}">{{c.name}}</a></b>: {{c.description}}</li>
       {% endfor %}
     </ul>
     <p>
