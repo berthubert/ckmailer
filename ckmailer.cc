@@ -93,10 +93,10 @@ string markdownToHTML(const std::string& input)
 {
   return markdownToX(input, "-t html");
 }
-
-string markdownToWeb(const std::string& input)
+// don't put " in the title
+string markdownToWeb(const std::string& input, const std::string& title)
 {
-  return markdownToX(input, "-t html -s --embed-resources");
+  return markdownToX(input, "-t html -s --embed-resources --metadata title=\""+title+"\"");
 }
 
 
@@ -273,7 +273,7 @@ int main(int argc, char** argv)
       string markdown = getContentsOfFile(cmds[1]);
 
       // no prefix, no postfix, no replacements
-      string webVersion = markdownToWeb(markdown);
+      string webVersion = markdownToWeb(markdown, "Een CKMailer nieuwsbrief / a CKMailer newsletter");
       
       regex img_regex(R"(!\[\]\(([^)]*)\))");  // XXX needs to be adjusted for captions!!
       auto begin = 
