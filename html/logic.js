@@ -1,9 +1,10 @@
 "use strict";
 
-async function doRequestAccountPage(f)
+async function doRequestAccountPage(f, highlight)
 {
     const formData = new FormData();
     formData.append('email', f.email);
+    formData.append('highlight', highlight);
 
     const response = await fetch('send-user-account-link', { method: "POST", body: formData });
     if (response.ok === true) {

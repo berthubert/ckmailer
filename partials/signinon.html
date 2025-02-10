@@ -23,13 +23,13 @@ email: ''
     </p>
     <ul>
       {% for c in channels %}
-      <li><b><a href="channel.html?channelId={{c.id}}">{{c.name}}</a></b>: {{c.description}}</li>
+      <li {% if c.cid==highlight %}style="border-width:3px; border-style:solid; border-color:#FF0000; padding: 0.5em;" {%endif%} ><b><a href="channel.html?channelId={{c.id}}">{{c.name}}</a></b>: {{c.description}}</li>
       {% endfor %}
     </ul>
     <p>
       Als je je wil inschrijven, of je bestaande abonnementen wil beheren, vul dan hier je email adres in en druk op enter. Je krijgt dan een mail met daarin een link naar een pagina waar je dat kan regelen:
     </p>
-    <form @submit.prevent="doRequestAccountPage($data);">
+    <form @submit.prevent="doRequestAccountPage($data, '{{highlight}}');">
       <fieldset role="group">
       <input x-model="email" name="email" size="80" placeholder="email address" autofocus required type="email">
       <input type="submit" value="Verstuur">

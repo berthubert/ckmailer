@@ -80,27 +80,17 @@ int main(int argc, char** argv)
     res.set_content(pages[0]["webversion"], "text/html");
   });
 
-  svr.Get(R"(/signinon.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
-    nlohmann::json data = nlohmann::json::object();
-    inja::Environment e;
-    e.set_html_autoescape(true); 
-    
-    data["pagemeta"]["title"]="Sign-in or sign-on";
-    data["og"]["title"] = "Sign-on or sign-on";
-    auto channels = tp.getLease()->queryT("select * from channels");
-    data["channels"] = packResultsJson(channels);
-    
-    res.set_content(e.render_file("./partials/signinon.html", data), "text/html");
-  });
 
   svr.Get(R"(/start.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
     nlohmann::json data = nlohmann::json::object();
     inja::Environment e;
     e.set_html_autoescape(true); 
+
+    data["highlight"] = req.get_param_value("hl");
     
     data["pagemeta"]["title"]="Sign-in or sign-on";
     data["og"]["title"] = "Sign-on or sign-on";
-    auto channels = tp.getLease()->queryT("select * from channels order by name");
+    auto channels = tp.getLease()->queryT("select *, 'c'||rowid as cid from channels order by name");
     data["channels"] = packResultsJson(channels);
     
     res.set_content(e.render_file("./partials/signinon.html", data), "text/html");
@@ -109,6 +99,7 @@ int main(int argc, char** argv)
   
   svr.Get(R"(/manage.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
     string timsi = req.get_param_value("timsi");
+    
     auto user = tp.getLease()->queryT("select * from users where timsi=?", {timsi});
     if(user.empty()) {
       res.status = 404;
@@ -118,24 +109,23 @@ int main(int argc, char** argv)
     string userId = eget(user[0], "id");
     decltype(user) channels;
     try {
-      channels = tp.getLease()->queryT("select channels.id, name,description, channels.rowid rowid, channelid not null as subscribed from channels left join subscriptions on subscriptions.channelId = channels.id and subscriptions.userId = ? order by name",
+      channels = tp.getLease()->queryT("select channels.id, name,description, 'c' || channels.rowid cid, channelid not null as subscribed from channels left join subscriptions on subscriptions.channelId = channels.id and subscriptions.userId = ? order by name",
 				       {userId});
-      cout<<"Got " << channels.size()<<" channels\n";
     }
     catch(std::exception& e) {
       cout<<"No subscriptions yet, only show channels: "<< e.what() << endl;
-      channels = tp.getLease()->queryT("select *, 0 as subscribed from channels");
+      channels = tp.getLease()->queryT("select *, 0 as subscribed, 'c'||rowid as cid from channels");
     }
     
     nlohmann::json data = nlohmann::json::object();
     inja::Environment e;
     e.set_html_autoescape(true); 
     data["timsi"]=timsi;
+    data["highlight"] = req.get_param_value("hl");
     data["email"] = eget(user[0], "email");
     data["pagemeta"]["title"]="Account";
     data["og"]["title"] = "Account";
     data["channels"] = packResultsJson(channels);
-    cout << packResultsJsonStr(channels) << endl;
     res.set_content(e.render_file("./partials/manage.html", data), "text/html");
   });
 
@@ -247,9 +237,17 @@ int main(int argc, char** argv)
       res.set_content(j.dump(), "application/json");
       return;
     }
+    auto channels = tp.getLease()->queryT("select * from channels where id=?", {channelId});
+    if(users.empty()) {
+      j["ok"]=0;
+      j["message"] = "No such channel";
+      res.set_content(j.dump(), "application/json");
+      return;
+    }
+    
     string userId = eget(users[0], "id");
     if(to=="subscribed") {
-      cout<<"Trying to subscribe "<<userId<<" "<<eget(users[0], "email") <<" to "<<channelId<<endl;
+      cout<<"Trying to subscribe "<<userId<<" "<<eget(users[0], "email") <<" to "<< eget(channels[0], "name")<< " " <<channelId<<endl;
       tp.getLease()->addOrReplaceValue({{"userId", userId}, {"channelId", channelId}}, "subscriptions");
       j["newstate"]="subscribed";
     }
@@ -261,12 +259,20 @@ int main(int argc, char** argv)
     }
     j["ok"]=1;
     res.set_content(j.dump(), "application/json");
-  });
-  
+  });  
 
   svr.Post(R"(/send-user-account-link)", [&tp](const httplib::Request &req, httplib::Response &res) {
     string email = req.get_file_value("email").content;
+    string highlight = req.get_file_value("highlight").content;
     nlohmann::json j;
+
+    std::regex re("c[0-9]*");
+    if(!highlight.empty() && !regex_match(highlight, re)) {
+      j["ok"]=0;
+      j["message"] = "Invalid channeld id";
+      res.set_content(j.dump(), "application/json");
+      return;
+    }
     
     if(email.empty()) {
       j["ok"]=0;
@@ -291,6 +297,9 @@ int main(int argc, char** argv)
       timsi = eget(user[0], "timsi");
     
     string url = "https://berthub.eu/ckmailer/manage.html?timsi=" +timsi;
+    if(!highlight.empty()) {
+      url += "&hl="+highlight;
+    }
     string textmsg, htmlmsg;
     if(newuser) {
       textmsg="Om je account te activeren, klik hier: "+url+" en selecteer dan in de webbrowser\nwelke nieuwsbrieven je wil ontvangen. Met vriendelijke groeten,\nCKMailer\n";

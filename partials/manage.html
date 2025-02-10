@@ -30,7 +30,7 @@ email: ''
       </thead>
       <tbody>
 	{% for c in channels %}
-	<tr><td>{{c.name}}</td>
+	<tr {% if c.cid == highlight %}style="border-width:3px; border-style:solid; border-color:#FF0000; padding: 0.5em;" {%endif%}><td>{{c.name}}</td>
 	  <td>{{c.description}}</td>
 	  <td><input @click.prevent='changeSubscription("{{timsi}}", "{{c.id}}", $el)' {% if c.subscribed==1 %}checked{% endif %} type="checkbox"> <span x-transition id="{{c.id}}"></span></td>
 	</tr>
