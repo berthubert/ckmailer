@@ -184,7 +184,8 @@ int main(int argc, char** argv)
 
   svr.Get(R"(/channel.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
     string channelId = req.get_param_value("channelId");
-
+    string lang = bestLang(req);
+    
     auto channel = tp.getLease()->queryT("select * from channels where id=?", {channelId});
     if(channel.empty()) {
       res.status = 404;
@@ -202,10 +203,9 @@ int main(int argc, char** argv)
     data["channelName"] = eget(channel.at(0), "name");
     data["channelDescription"] = eget(channel.at(0), "description");
 
-    // make links to all posts!
     data["posts"] = packResultsJson(tp.getLease()->queryT("select * from launches where channelId=? order by timestamp desc", {channelId}));
-    
-    res.set_content(e.render_file("./partials/channel.html", data), "text/html");
+    data["lang"] = lang.empty() ? lang : lang.substr(1); // skip the .
+    res.set_content(e.render_file("./partials/channel"+lang+".html", data), "text/html");
   });
 
   

@@ -18,12 +18,12 @@ email: ''
 {% block main %}
 <h2>"{{channelDescription}}"</h2>
 <p>
-  This list has {{numsubscribers}} subscribers.
+  Er zijn nu {{numsubscribers}} email adressen geabonneerd op deze lijst.
 </p>
-<h2>Archive of messages</h2>
+<h2>Verzonden berichten</h2>
 <ul>
   {% for p in posts %}
-  <li><span x-text="d=new Date({{p.timestamp}}000); return d.toLocaleString(undefined);"></span>: <a href="msg/{{p.msgId}}">{{p.subject}}</a></li>
+  <li><span x-text="d=new Date({{p.timestamp}}000); return d.toLocaleString('nl-NL');"></span>: <a href="msg/{{p.msgId}}">{{p.subject}}</a></li>
   {% endfor %}
 </ul>
   
