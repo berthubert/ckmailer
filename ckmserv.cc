@@ -43,7 +43,7 @@ int main(int argc, char** argv)
   svr.set_mount_point("/", "./html/");
   svr.set_keep_alive_max_count(1); // Default is 5
   svr.set_keep_alive_timeout(1);  // Default is 5
-  ThingPool<SQLiteWriter> tp("ckmailer.sqlite3");
+  ThingPool<SQLiteWriter> tp("ckmailer.sqlite3", SQLWFlag::NoTransactions);
 
   SQLiteWriter userdb("ckmailer.sqlite3", {
       {"subscriptions",
@@ -325,7 +325,9 @@ int main(int argc, char** argv)
   });
   
   svr.set_pre_routing_handler([&tp](const auto& req, auto& res) {
-    fmt::print("Req: {} {} {} max-db {}\n", req.path, req.params, req.has_header("User-Agent") ? req.get_header_value("User-Agent") : "",
+    fmt::print("Req: {} {} {} {} max-db {}\n", req.path, req.params,
+	       req.has_header("User-Agent") ? req.get_header_value("User-Agent") : "",
+	       req.has_header("Accept-Language") ? req.get_header_value("Accept-Language") : "",
 	       (unsigned int)tp.d_maxout);
     return httplib::Server::HandlerResponse::Unhandled;
   });
