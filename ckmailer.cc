@@ -170,7 +170,7 @@ int main(int argc, char** argv)
 	    {"name", "PRIMARY KEY"}
 	  }
       }
-    } );
+    }, SQLWFlag::NoTransactions );
 
   try {
     string userId=getLargeId(), channelId=getLargeId();
