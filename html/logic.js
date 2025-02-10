@@ -19,7 +19,7 @@ async function doRequestAccountPage(f, highlight)
 }
 
 
-async function changeSubscription(timsi, channelid, el)
+async function changeSubscription(timsi, channelid, lang, el)
 {
     console.log(el.checked);
     console.log(el);
@@ -42,9 +42,9 @@ async function changeSubscription(timsi, channelid, el)
 	el.disabled=false;
 	let s = document.getElementById(channelid);
 	if(el.checked) 
-	    s.innerText="Ingeschreven!";
+	    s.innerText= lang == "nl" ? "Ingeschreven!" : "Subscribed!";
 	else
-	    s.innerText="Afgemeld!";
+	    s.innerText= lang == "nl" ? "Afgemeld!" : "Unsubscribed!";
     }
     else {
 	console.log("error");

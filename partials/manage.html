@@ -11,43 +11,40 @@ email: ''
 {% endblock %}
 
 {% block header %}
-<h1>Beheer je account gebruiker {{email}}</h1>
+<h1>Manage your account {{email}}</h1>
 
 {% endblock %}
 
 {% block main %}
   <div>
     <p>
-      De volgende mailing lists zijn beschikbaar. <b>Als je het vakje bij "Ingeschreven" selecteert, dan ben je gelijk ingeschreven!</b>
+      The following mailing lists are available. <b>Checking the 'Subscribed' box will subscribe you immediately!</b>
     </p>
     <table class="striped">
       <thead>
 	<tr>
-	  <th>Naam</th>
-	  <th>Omschrijving</th>
-	  <th>Ingeschreven</th>
+	  <th>Name</th>
+	  <th>Description</th>
+	  <th>Subscribed</th>
 	</tr>
       </thead>
       <tbody>
 	{% for c in channels %}
 	<tr {% if c.cid == highlight %}style="border-width:3px; border-style:solid; border-color:#FF0000; padding: 0.5em;" {%endif%}><td>{{c.name}}</td>
 	  <td>{{c.description}}</td>
-	  <td><input @click.prevent='changeSubscription("{{timsi}}", "{{c.id}}", $el)' {% if c.subscribed==1 %}checked{% endif %} type="checkbox"> <span x-transition id="{{c.id}}"></span></td>
+	  <td><input @click.prevent='changeSubscription("{{timsi}}", "{{c.id}}", "{{lang}}", $el)' {% if c.subscribed==1 %}checked{% endif %} type="checkbox"> <span x-transition id="{{c.id}}"></span></td>
 	</tr>
 	{% endfor %}
       </tbody>
     </table>
-    <p>Je hoeft je inschrijving/uitschrijving niet te bevestigen, <b>klikken op het vakje</b> is genoeg!</p>
-    <h5>Privacybeleid</h5>
-    <p>Je data wordt aan niemand verkocht en met niemand gedeeld. 
-      Ik ga je nooit spammen. Als er ooit andere mail wordt gestuurd is dat omdat dat heel dringend nodig was (bijvoorbeeld als we gehacked zouden zijn). Behalve je emailadres en je abonnementen slaan we niets op. Niet eens je naam, en ook geen wachtwoord.
-      Wel worden er tijdelijk logfiles bijgehouden om storingen te onderzoeken, maar die logregels zijn niet aan je account gekoppeld.
+    <p>There is no need to confirm subscribing or unsubscribing!</p>
+        <p>Privacy policy: your data will not be sold and won't be shared with any one. We'll also not contact you via email, except for messages you explicitly subscribed to. If we do contact you it is because there is an urgent reason to, like for example a data breach. Except for your email address and your subscriptions, we store no data about you, not even your name nor a password. We do however temporarily store log files to investigate problems, but these log files do not contain any personal details.
     </p>
     <p>
-      Alles draait op <a href="https://www.lenovo.com/nl/nl/p/desktops/thinkcentre/m-series-tiny/thinkcentre-m70q/wmd00000405">mijn servertje</a> thuis nabij Den Haag, en niet op een cloud. 
+      This service runs on <a href="https://www.lenovo.com/nl/nl/p/desktops/thinkcentre/m-series-tiny/thinkcentre-m70q/wmd00000405">my small server server</a> in my home, and not on any cloud.
     </p>
     <p>
-      Voor vragen, inzage in je data, of verwijderverzoeken, neem contact op met <a href="https://berthub.eu">Bert Hubert</a>, bert@hubertnet.nl
+      For any questions or access to your data, or removal requests, please contact <a href="https://berthub.eu">Bert Hubert</a>, bert@hubertnet.nl
     </p>
   </div>
 </template>

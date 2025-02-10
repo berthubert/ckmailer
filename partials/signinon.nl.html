@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block div %}
+x-data="{
+state: 0,
+email: ''
+}"
+{% endblock %}
+
+{% block javascript %}
+{{ super() }}
+{% endblock %}
+
+{% block header %}
+<h1>Beheer je account, of maak er een aan</h1>
+
+{% endblock %}
+
+{% block main %}
+<template x-if="state==0">
+  <div>
+    <p>
+      De volgende mailing lists zijn beschikbaar:
+    </p>
+    <ul>
+      {% for c in channels %}
+      <li {% if c.cid==highlight %}style="border-width:3px; border-style:solid; border-color:#FF0000; padding: 0.5em;" {%endif%} ><b><a href="channel.html?channelId={{c.id}}">{{c.name}}</a></b>: {{c.description}}</li>
+      {% endfor %}
+    </ul>
+    <p>
+      Als je je wil inschrijven, of je bestaande abonnementen wil beheren, vul dan hier je email adres in en druk op enter. Je krijgt dan een mail met daarin een link naar een pagina waar je dat kan regelen:
+    </p>
+    <form @submit.prevent="doRequestAccountPage($data, '{{highlight}}');">
+      <fieldset role="group">
+      <input x-model="email" name="email" size="80" placeholder="email address" autofocus required type="email">
+      <input type="submit" value="Verstuur">
+      </fieldset>
+    </form>
+    <p>Privacybeleid: je data wordt aan niemand verkocht en met niemand gedeeld. 
+      Ik ga je nooit spammen. Als er ooit andere mail wordt gestuurd is dat omdat dat heel dringend nodig was (bijvoorbeeld als we gehacked zouden zijn). Behalve je emailadres en je abonnementen slaan we niets op. Niet eens je naam, en ook geen wachtwoord.
+      Wel worden er tijdelijk logfiles bijgehouden om storingen te onderzoeken, maar die logregels zijn niet aan je account gekoppeld.
+    </p>
+    <p>
+      Alles draait op <a href="https://www.lenovo.com/nl/nl/p/desktops/thinkcentre/m-series-tiny/thinkcentre-m70q/wmd00000405">mijn servertje</a> thuis nabij Den Haag, en niet op een cloud. 
+    </p>
+    <p>
+      Voor vragen, inzage in je data, of verwijderverzoeken, neem contact op met <a href="https://berthub.eu">Bert Hubert</a>, bert@hubertnet.nl
+    </p>
+  </div>
+</template>
+
+<template x-if="state==1">
+  <div>
+    <p>
+      Er is een email verstuurd naar <b><span x-text="email"></span></b> met daarin een link om je in te schrijven voor een nieuwe lijst, of om je bestaande abonnementen te beheren.
+    </p>
+    <p>
+      Wacht op die email en klik op de link om verder te gaan! <b>Check mogelijk ook je spamfolder</b>. Als er niets aankomt, mail bert@hubertnet.nl dan regel ik het met de hand.
+    </p>
+  </div>
+</template>
+
+
+{% endblock %}
+	

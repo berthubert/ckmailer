@@ -269,10 +269,15 @@ int main(int argc, char** argv)
   }
   else if(args.is_subcommand_used(msg_command)) {
     auto cmds = msg_command.get<std::vector<std::string>>("commands");
-    fmt::print("Got msg commands: {}\n", cmds);
     if(cmds[0]=="read") {
-      string markdown = getContentsOfFile(cmds[1]);
+      if(cmds.size() != 3) {
+	fmt::print("Syntax: msg read fname language (nl, en)\n");
+	return EXIT_FAILURE;
+      }
 
+      string markdown = getContentsOfFile(cmds[1]);
+      string lang = cmds[2];
+      
       // no prefix, no postfix, no replacements
       string webVersion = markdownToWeb(markdown, "Een CKMailer nieuwsbrief / a CKMailer newsletter");
       
@@ -297,11 +302,24 @@ int main(int argc, char** argv)
       }
       //      cout<<"Markdown now:\n"<<markdown<<endl;
       
-      string textVersion = "Klik op {{weblink}} om deze mail op het web te bekijken\n\n"+markdownToText(markdown);
-      textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}} of om je abonnementen te beheren\n";
+      string textVersion;
+      if(lang == "nl")
+	textVersion = "Klik op {{weblink}} om deze mail op het web te bekijken\n\n";
+      else
+	textVersion = "Click here {{weblink}} to view this message on the web\n\n";
+      textVersion += markdownToText(markdown);
+
+      if(lang == "nl") 
+	textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}} of om je abonnementen te beheren.\n";
+      else
+	textVersion += "\nClick here {{unsubscribelink}} to unsubscribe from list {{channelName}} or to manage your subcriptions.\n";
       
       string htmlVersion = markdownToHTML(markdown);
-      htmlVersion += "\n<p>Klik <a href=\"{{unsubscribelink}}\">hier</a> om je af te melden van lijst {{channelName}} of om je abonnementen te beheren\n</p>";
+
+      if(lang =="nl") 
+	htmlVersion += "\n<p>Klik <a href=\"{{unsubscribelink}}\">hier</a> om je af te melden van lijst {{channelName}} of om je abonnementen te beheren\n</p>";
+      else
+	htmlVersion += "\n<p>Click <a href=\"{{unsubscribelink}}\">here</a> to unsubscribe from list {{channelName}} or to manage your subscriptions\n</p>";	
 
       string id = getLargeId();
       db.addValue({{"id", id}, {"markdown", markdown}, {"textversion", textVersion}, {"htmlversion", htmlVersion}, {"webversion", webVersion}}, "msgs");

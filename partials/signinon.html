@@ -11,7 +11,7 @@ email: ''
 {% endblock %}
 
 {% block header %}
-<h1>Beheer je account, of maak er een aan</h1>
+<h1>Manage your account, OR create one</h1>
 
 {% endblock %}
 
@@ -19,7 +19,7 @@ email: ''
 <template x-if="state==0">
   <div>
     <p>
-      De volgende mailing lists zijn beschikbaar:
+      The following mailing lists are available:
     </p>
     <ul>
       {% for c in channels %}
@@ -27,23 +27,21 @@ email: ''
       {% endfor %}
     </ul>
     <p>
-      Als je je wil inschrijven, of je bestaande abonnementen wil beheren, vul dan hier je email adres in en druk op enter. Je krijgt dan een mail met daarin een link naar een pagina waar je dat kan regelen:
+      To subscribe to a mailing list, or to manage any existing subscriptions, fill out your email address below and press enter. You'll receive an email containing a link that will either activate your new account, or allow you to manage an existing one.
     </p>
     <form @submit.prevent="doRequestAccountPage($data, '{{highlight}}');">
       <fieldset role="group">
       <input x-model="email" name="email" size="80" placeholder="email address" autofocus required type="email">
-      <input type="submit" value="Verstuur">
+      <input type="submit" value="Submit">
       </fieldset>
     </form>
-    <p>Privacybeleid: je data wordt aan niemand verkocht en met niemand gedeeld. 
-      Ik ga je nooit spammen. Als er ooit andere mail wordt gestuurd is dat omdat dat heel dringend nodig was (bijvoorbeeld als we gehacked zouden zijn). Behalve je emailadres en je abonnementen slaan we niets op. Niet eens je naam, en ook geen wachtwoord.
-      Wel worden er tijdelijk logfiles bijgehouden om storingen te onderzoeken, maar die logregels zijn niet aan je account gekoppeld.
+    <p>Privacy policy: your data will not be sold and won't be shared with any one. We'll also not contact you via email, except for messages you explicitly subscribed to. If we do contact you it is because there is an urgent reason to, like for example a data breach. Except for your email address and your subscriptions, we store no data about you, not even your name nor a password. We do however temporarily store log files to investigate problems, but these log files do not contain any personal details.
     </p>
     <p>
-      Alles draait op <a href="https://www.lenovo.com/nl/nl/p/desktops/thinkcentre/m-series-tiny/thinkcentre-m70q/wmd00000405">mijn servertje</a> thuis nabij Den Haag, en niet op een cloud. 
+      This service runs on <a href="https://www.lenovo.com/nl/nl/p/desktops/thinkcentre/m-series-tiny/thinkcentre-m70q/wmd00000405">my small server server</a> in my home, and not on any cloud.
     </p>
     <p>
-      Voor vragen, inzage in je data, of verwijderverzoeken, neem contact op met <a href="https://berthub.eu">Bert Hubert</a>, bert@hubertnet.nl
+      For any questions or access to your data, or removal requests, please contact <a href="https://berthub.eu">Bert Hubert</a>, bert@hubertnet.nl
     </p>
   </div>
 </template>
@@ -51,10 +49,10 @@ email: ''
 <template x-if="state==1">
   <div>
     <p>
-      Er is een email verstuurd naar <b><span x-text="email"></span></b> met daarin een link om je in te schrijven voor een nieuwe lijst, of om je bestaande abonnementen te beheren.
+      We just sent an email to <b><span x-text="email"></span></b>, containing a link to activate or manage your account.
     </p>
     <p>
-      Wacht op die email en klik op de link om verder te gaan! <b>Check mogelijk ook je spamfolder</b>. Als er niets aankomt, mail bert@hubertnet.nl dan regel ik het met de hand.
+      Please wait for that email to arrive and then click the link in there to proceed. <b>Please also check your spam folder!</b>. If no mail arrives, do email bert@hubertnet.nl so I can fix things for you.
     </p>
   </div>
 </template>

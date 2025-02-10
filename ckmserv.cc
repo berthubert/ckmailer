@@ -16,6 +16,22 @@
 
 using namespace std;
 
+
+// english -> empty return
+// dutch -> .nl
+
+string bestLang(const auto& req)
+{
+  string lang = req.has_header("Accept-Language") ? req.get_header_value("Accept-Language") : "";
+  if(lang.empty())
+    return "";
+  auto parts = splitString(lang, ",");
+  fmt::print("langs: {}\n", parts);
+  if(parts[0].find("nl") != string::npos)
+    return ".nl";
+  return "";
+}
+
 int main(int argc, char** argv)
 {
   signal(SIGPIPE, SIG_IGN); // every TCP application needs this
@@ -82,18 +98,20 @@ int main(int argc, char** argv)
 
 
   svr.Get(R"(/start.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
+    string lang = bestLang(req);
     nlohmann::json data = nlohmann::json::object();
     inja::Environment e;
     e.set_html_autoescape(true); 
 
     data["highlight"] = req.get_param_value("hl");
     
-    data["pagemeta"]["title"]="Sign-in or sign-on";
+    data["pagemeta"]["title"]= "Sign-in or sign-on";
     data["og"]["title"] = "Sign-on or sign-on";
     auto channels = tp.getLease()->queryT("select *, 'c'||rowid as cid from channels order by name");
     data["channels"] = packResultsJson(channels);
+    data["lang"] = lang.empty() ? lang : lang.substr(1); // skip the .
     
-    res.set_content(e.render_file("./partials/signinon.html", data), "text/html");
+    res.set_content(e.render_file("./partials/signinon" + lang+".html", data), "text/html");
   });
 
   
@@ -126,7 +144,9 @@ int main(int argc, char** argv)
     data["pagemeta"]["title"]="Account";
     data["og"]["title"] = "Account";
     data["channels"] = packResultsJson(channels);
-    res.set_content(e.render_file("./partials/manage.html", data), "text/html");
+    string lang = bestLang(req);
+    data["lang"] = lang.empty() ? lang : lang.substr(1); // skip the .
+    res.set_content(e.render_file("./partials/manage"+lang+".html", data), "text/html");
   });
 
   svr.Get(R"(/unsubscribe.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
@@ -280,8 +300,8 @@ int main(int argc, char** argv)
       res.set_content(j.dump(), "application/json");
       return;
     }
-    
-    cout << "Possible new user "<<email<<endl;
+    string lang = bestLang(req); // .nl dutch, empty string for english    
+    cout << "Possible new user "<<email<<", lang '"<<lang<<"'"<<endl;
     auto db = tp.getLease();
     auto user = db->queryT("select * from users where email=?", {email});
     string timsi;
@@ -300,21 +320,40 @@ int main(int argc, char** argv)
     if(!highlight.empty()) {
       url += "&hl="+highlight;
     }
-    string textmsg, htmlmsg;
+      string textmsg, htmlmsg, subject;
+
     if(newuser) {
-      textmsg="Om je account te activeren, klik hier: "+url+" en selecteer dan in de webbrowser\nwelke nieuwsbrieven je wil ontvangen. Met vriendelijke groeten,\nCKMailer\n";
-      htmlmsg="<p>Om je account te activeren, klik hier <a href=\""+url+"\">"+url+"</a> en selecteer dan in de webbrowser welke nieuwsbrieven je wil ontvangen.</p><p> Met vriendelijke groeten,<br>CKMailer</p>";
+      if(lang==".nl") {
+ 	textmsg="Om je account te activeren, klik hier: "+url+" en selecteer dan in de webbrowser\nwelke nieuwsbrieven je wil ontvangen. Met vriendelijke groeten,\nCKMailer\n";
+	htmlmsg="<p>Om je account te activeren, klik hier <a href=\""+url+"\">"+url+"</a> en selecteer dan in de webbrowser welke nieuwsbrieven je wil ontvangen.</p><p> Met vriendelijke groeten,<br>CKMailer</p>";
+	
+	subject = "Activatielink voor je account op berthub.eu/ckmailer";
+      }
+      else {
+	textmsg="To activate your account, click here: "+url+" and on the linked page, select\nwhich mailing lists you want to subscribe to. With kind regards,\nCKMailer\n";
+	htmlmsg="<p>To activate your account, click here: <a href=\""+url+"\">"+url+"</a> and on the linked page select which mailing lists you want to subscribe to.</p><p>With kind regards,<br>CKMailer</p>";
+
+	subject = "Activate your account on berthub.eu/ckmailer";
+
+      }
     }
     else {
-      textmsg="Om je account te beheren, klik hier: "+url+" en selecteer dan in de webbrowser\nwelke nieuwsbrieven je wil ontvangen. Met vriendelijke groeten,\nCKMailer\n";
-      htmlmsg="<p>Om je account te beheren, klik hier <a href=\""+url+"\">"+url+"</a> en selecteer dan in de webbrowser welke nieuwsbrieven je wil ontvangen.</p><p> Met vriendelijke groeten,<br>CKMailer</p>";
+      if(lang==".nl") {
+	textmsg="Om je account te beheren, klik hier: "+url+" en selecteer dan in de webbrowser\nwelke nieuwsbrieven je wil ontvangen. Met vriendelijke groeten,\nCKMailer\n";
+	htmlmsg="<p>Om je account te beheren, klik hier <a href=\""+url+"\">"+url+"</a> en selecteer dan in de webbrowser welke nieuwsbrieven je wil ontvangen.</p><p> Met vriendelijke groeten,<br>CKMailer</p>";
+	subject = "Beheer je account op berthub.eu/ckmailer";
+      }
+      else {
+	textmsg="To manage your account, click here: "+url+" and on the linked page\nselect which mailing lists you want to receive. With kind regards,\nCKMailer\n";
+	htmlmsg="<p>To manage your account, click here <a href=\""+url+"\">"+url+"</a> and on the linked page, select which mailing lists you want to receive.</p><p>With kind regards,<br>CKMailer</p>";
+	subject = "Manage your account on berthub.eu/ckmailer";
+      }
     }
     
     sendEmail("10.0.0.2",  // system setting
 	      "bert@hubertnet.nl", // channel setting really
-	      email,        
-	      newuser ? "Activatielink voor je account op berthub.eu/ckmailer" :
-	      "Beheer je account op berthub.eu/ckmailer" , // subject
+	      email,
+	      subject,
 	      textmsg,
 	      htmlmsg);
     
