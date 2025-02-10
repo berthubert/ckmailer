@@ -84,7 +84,6 @@ int main(int argc, char** argv)
   
   
   svr.Get(R"(/msg/:msgid)", [&tp](const httplib::Request &req, httplib::Response &res) {
-    cout<<"Called!"<<endl;
     string msgid = req.path_params.at("msgid");
     auto pages = tp.getLease()->query("select webVersion from msgs where id=?", {msgid});
     if(pages.empty()) {
@@ -215,7 +214,8 @@ int main(int argc, char** argv)
     string channelId = req.path_params.at("channel");
     tp.getLease()->queryT("delete from subscriptions where userId=? and channelId=?",
 				       {userId, channelId});
-    cout<<"Just unsubscribed user id "<<userId<<" from channel "<<channelId<<endl;
+    tp.getLease()->addValue({{"timestamp", time(0)}, {"action", "post-oneclick-unsubscribe"}, {"channelId", channelId}, {"userId", userId}}, "log");
+    cout<<"Just post-oneclick-unsubscribed user id "<<userId<<" from channel "<<channelId<<endl;
   });
 
   // we get this when people *click* on the automated POST unsubscribe link..
@@ -265,20 +265,25 @@ int main(int argc, char** argv)
       res.set_content(j.dump(), "application/json");
       return;
     }
-    
+    string email = eget(users[0], "email");
     string userId = eget(users[0], "id");
+    string channelName = eget(channels[0], "name");
     if(to=="subscribed") {
-      cout<<"Trying to subscribe "<<userId<<" "<<eget(users[0], "email") <<" to "<< eget(channels[0], "name")<< " " <<channelId<<endl;
+      cout<<"Trying to subscribe "<<userId<<" "<<email <<" to "<< channelName << " " <<channelId<<endl;
       tp.getLease()->addOrReplaceValue({{"userId", userId}, {"channelId", channelId}}, "subscriptions");
       j["newstate"]="subscribed";
     }
     else {
-      cout<<"Trying to unsubscribe "<<userId<<" " <<eget(users[0], "email")<<" from "<<channelId<<endl;
+      cout<<"Trying to unsubscribe "<<userId<<" " << email <<" from "<<channelName<<" " <<channelId<<endl;
       tp.getLease()->queryT("delete from subscriptions where userid=? and channelid=?", {
 	  userId, channelId});
       j["newstate"]="unsubscribed";
     }
     j["ok"]=1;
+
+    tp.getLease()->addValue({{"timestamp", time(0)}, {"action", "change-subscribe"}, {"userId", userId}, {"email", email}, {"channelName", channelName}, {"channelId", channelId}, 
+			     {"newstate", (string)j["newstate"]}}, "log");
+    
     res.set_content(j.dump(), "application/json");
   });  
 
@@ -307,21 +312,27 @@ int main(int argc, char** argv)
     auto user = db->queryT("select * from users where email=?", {email});
     string timsi;
     bool newuser=false;
-    
+    string userId;
+    bool created = false;
     if(user.empty()) {
       cout<<"New user!"<<endl;
       newuser=true;
       timsi = getLargeId();
-      db->addValue({{"id", getLargeId()}, {"timsi", timsi}, {"email", email}}, "users");
+      userId = getLargeId();
+      db->addValue({{"id", userId}, {"timsi", timsi}, {"email", email}}, "users");
+      created=true;
     }
-    else
+    else {
+      userId = eget(user[0], "id");
       timsi = eget(user[0], "timsi");
+      created = false;
+    }
     
     string url = "https://berthub.eu/ckmailer/manage.html?timsi=" +timsi;
     if(!highlight.empty()) {
       url += "&hl="+highlight;
     }
-      string textmsg, htmlmsg, subject;
+    string textmsg, htmlmsg, subject;
 
     if(newuser) {
       if(lang==".nl") {
@@ -350,7 +361,7 @@ int main(int argc, char** argv)
 	subject = "Manage your account on berthub.eu/ckmailer";
       }
     }
-    
+    tp.getLease()->addValue({{"timestamp", time(0)}, {"action", "user-invite"}, {"userId", userId}, {"email", email}, {"created", created}, {"lang", lang}}, "log");
     sendEmail("10.0.0.2",  // system setting
 	      "bert@hubertnet.nl", // channel setting really
 	      email,
