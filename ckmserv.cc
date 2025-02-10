@@ -156,7 +156,6 @@ int main(int argc, char** argv)
       return;
     }
     
-    
     nlohmann::json data = nlohmann::json::object();
     inja::Environment e;
     e.set_html_autoescape(true); 
@@ -229,12 +228,17 @@ int main(int argc, char** argv)
     res.status = 301;
     res.set_header("Location", "../../unsubscribe.html?userId="+userId+"&channelId="+channelId);
   });
+
+  svr.Get(R"(/)", [&tp](const httplib::Request &req, httplib::Response &res) {
+    res.status = 302; // temporary
+    res.set_header("Location", "start.html");
+  });
   
   svr.Post(R"(/change-subscription)", [&tp](const httplib::Request &req, httplib::Response &res) {
     string timsi = req.get_file_value("timsi").content;
     string channelId = req.get_file_value("channelid").content;
     string to = req.get_file_value("to").content;
-    cout<<"Got change request, to: "<<to<<endl;
+    //    cout<<"Got change request, to: "<<to<<endl;
     auto users = tp.getLease()->queryT("select * from users where timsi=?", {timsi});
     nlohmann::json j;
     if(users.empty()) {
@@ -278,6 +282,7 @@ int main(int argc, char** argv)
     bool newuser=false;
     
     if(user.empty()) {
+      cout<<"New user!"<<endl;
       newuser=true;
       timsi = getLargeId();
       db->addValue({{"id", getLargeId()}, {"timsi", timsi}, {"email", email}}, "users");
@@ -307,7 +312,6 @@ int main(int argc, char** argv)
     j["ok"]=1;
     res.set_content(j.dump(), "application/json");
   });
-
   
   svr.set_exception_handler([](const auto& req, auto& res, std::exception_ptr ep) {
     auto fmt = "<h1>Error 500</h1><p>%s</p>";
@@ -337,6 +341,7 @@ int main(int argc, char** argv)
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
 	       reinterpret_cast<const void *>(&yes), sizeof(yes));
   });
-  
+
+  cout<<"Going live on http://127.0.0.1:1848/\n";
   svr.listen("0.0.0.0", 1848);
 }
