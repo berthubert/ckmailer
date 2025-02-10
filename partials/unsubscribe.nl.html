@@ -12,13 +12,13 @@ email: ''
 
 {% block header %}
 
-<h1>Unsubscribe {{email}} from {{channelName}}</h1>
+<h1>Meld {{email}} af van {{channelName}}</h1>
 {% endblock %}
 
 {% block main %}
 {% if subscribed %}
 <p>
-  Click here to unsubscribe:
+  Klik hier om je af te melden:
 </p>
 
 <input type="button" value="Unsubscribe from {{channelName}}"
@@ -27,8 +27,9 @@ email: ''
 <span id="message"></span>
 
 {% else %}
-User is not subscribed, so no need to unsubscribe.
-
+Gebruiker was niet geabonneerd op deze lijst.
 {% endif %}
+
+
 {% endblock %}
 	

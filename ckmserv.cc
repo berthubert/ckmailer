@@ -177,7 +177,8 @@ int main(int argc, char** argv)
     data["subscribed"] = !subscription.empty();
     data["channelName"] = eget(channel.at(0), "name");
     data["email"] = eget(user.at(0), "email");
-
+    string lang = bestLang(req);
+    data["lang"] = lang.empty() ? lang : lang.substr(1); // skip the .
     
     res.set_content(e.render_file("./partials/unsubscribe.html", data), "text/html");
   });
