@@ -143,6 +143,7 @@ int main(int argc, char** argv)
   argparse::ArgumentParser imap_command("imap");
   imap_command.add_description("Imap management");
   imap_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
+  imap_command.add_argument("--active").help("act on messages, don't just observe").flag();
   args.add_subparser(imap_command);
 
   
@@ -472,11 +473,10 @@ int main(int argc, char** argv)
   else if(args.is_subcommand_used(imap_command)) {
     
     auto cmds = imap_command.get<std::vector<std::string>>("commands");
-    fmt::print("Got imap commands: {}\n", cmds);
     auto uhdrs = imapGetMessages(ComboAddress(settings["imap-server"], 993),
 				 settings["imap-user"],
 				 settings["imap-password"]);
-    fmt::print("Got this from imap:\n{}\n", uhdrs);
+    //    fmt::print("Got this from imap:\n{}\n", uhdrs);
     set<uint32_t> handled;
     for(auto& [uid, hdrs]: uhdrs) {
       if(hdrs.count("Subject")) {
@@ -490,8 +490,29 @@ int main(int argc, char** argv)
 	  handled.insert(uid);
 	}
       }
+
+      string to = hdrs["To"];
+      auto pluspos = to.find('+') ;
+      auto atpos = to.find('@') ;
+      if(hdrs["Return-Path"] =="<>" && pluspos != string::npos && atpos != string::npos) {
+
+	string id = to.substr(pluspos+1, atpos - pluspos -1);
+	cout <<"Maybe we got a bounce: "<<id<<" from '"<<to<<"'"<<endl;
+	auto res = db.query("select * from queue where id=?", {id});
+	if(!res.empty()) {
+	  cout<<"Bounce was for "<<res[0]["destination"] << ", noting"<<endl;
+	  if (imap_command["--active"] == true)
+	    db.query("update queue set bounced=1 where id=?", {id});
+	  handled.insert(uid);
+	}
+	else
+	  cout<<"Unknown bounce"<<endl;
+	
+      }
     }
-    
-    imapMove(ComboAddress(settings["imap-server"], 993), "bmailer", settings["imap-password"], handled);
+    if (imap_command["--active"] == true && !handled.empty()) {
+      imapMove(ComboAddress(settings["imap-server"], 993), "bmailer", settings["imap-password"], handled);
+    }
+
   }
 }

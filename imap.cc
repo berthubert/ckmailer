@@ -206,13 +206,12 @@ std::vector<pair<uint32_t, std::unordered_map<string,string>>> imapGetMessages(c
     sh.checkConnection(checkname, 0); // does 0 work??
 
   string resp = sslGetLine(sh.ssl);
-  cout<<resp<<endl;
+  //  cout<<resp<<endl;
   unsigned int counter=0;
   vector<string> lines;
-
   
   scommand(counter, sh, "login "+user+" "+password);
-  cout<<"Logged in!"<<endl;
+  //  cout<<"Logged in!"<<endl;
   scommand(counter,sh,"namespace");
   scommand(counter, sh, R"(select "INBOX")");
 
@@ -226,7 +225,7 @@ std::vector<pair<uint32_t, std::unordered_map<string,string>>> imapGetMessages(c
     if(auto pos = l.find("(UID "); pos != string::npos)
       uids.insert(atol(&l.at(pos+4)));
   }
-  fmt::print("Had the following uids: {}\n", uids);
+  //  fmt::print("Had the following uids: {}\n", uids);
   for(auto i : uids) {
     
     lines = scommand(counter, sh, "UID FETCH "+to_string(i)+" body[header]");
@@ -235,9 +234,13 @@ std::vector<pair<uint32_t, std::unordered_map<string,string>>> imapGetMessages(c
     auto split = splitString(lines[0], "\r\n");
 
     std::unordered_map<string,string> hdrs;
+    std::unordered_set<string> care({"Subject", "To", "Return-Path"});
+    
     for(const auto& l : split) {
-      if(l.find("Subject: ") == 0) {
-	hdrs["Subject"] = l.substr(9);
+      for(const auto& c : care) {
+	if(l.find(c+": ") == 0) {
+	  hdrs[c] = l.substr(c.length()+2);
+	}
       }
     }
     ret.push_back({i, hdrs});
