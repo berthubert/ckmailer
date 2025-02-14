@@ -346,6 +346,7 @@ int main(int argc, char** argv)
       data["weblink"] = "https://berthub.eu/ckmailer/msg/"+rows[0]["id"];
       data["unsubscribelink"] = "NA";
       data["channelName"] = "NA";
+      data["channelLink"] = "NA";
       
       string textmsg = e.render(rows[0]["textversion"], data);
       e.set_html_autoescape(true); // NOTE WELL!
