@@ -310,16 +310,16 @@ int main(int argc, char** argv)
       textVersion += markdownToText(markdown);
 
       if(lang == "nl") 
-	textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}} of om je abonnementen te beheren.\n";
+	textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}} of om je abonnementen te beheren. Op {{channelLink}} kan je het archief fincen, en kunnen aneren zich ook inschrijven.\n";
       else
-	textVersion += "\nClick here {{unsubscribelink}} to unsubscribe from list {{channelName}} or to manage your subcriptions.\n";
+	textVersion += "\nClick here {{unsubscribelink}} to unsubscribe from list {{channelName}} or to manage your subcriptions. On {{channelLink}} you'll find the archive, and links for other people to subscribe to the list.\n";
       
       string htmlVersion = markdownToHTML(markdown);
 
       if(lang =="nl") 
-	htmlVersion += "\n<p>Klik <a href=\"{{unsubscribelink}}\">hier</a> om je af te melden van lijst {{channelName}} of om je abonnementen te beheren\n</p>";
+	htmlVersion += "\n<p>Klik <a href=\"{{unsubscribelink}}\">hier</a> om je af te melden van lijst {{channelName}} of om je abonnementen te beheren. Op <a href=\"{{channelLink}}\">deze pagina</a> kan je het archief vinden, en kunnen anderen zich ook inschrijven.\n</p>";
       else
-	htmlVersion += "\n<p>Click <a href=\"{{unsubscribelink}}\">here</a> to unsubscribe from list {{channelName}} or to manage your subscriptions\n</p>";	
+	htmlVersion += "\n<p>Click <a href=\"{{unsubscribelink}}\">here</a> to unsubscribe from list {{channelName}} or to manage your subscriptions. On <a href=\"{{channelLink}}\">this page</a> you'll find the archive, and links for other people to subscribe to the list.\n</p>";	
 
       string id = getLargeId();
       db.addValue({{"id", id}, {"markdown", markdown}, {"textversion", textVersion}, {"htmlversion", htmlVersion}, {"webversion", webVersion}}, "msgs");
@@ -391,10 +391,20 @@ int main(int argc, char** argv)
       auto dests = db.queryT("select users.id userId, users.timsi timsi, channels.id channelId, users.email from users,subscriptions,channels where users.id=subscriptions.userId and subscriptions.channelId=channels.id and channels.rowid=?", {channelId});
 
       for(auto& d: dests) {
-	cout<<"Would send to "<<eget(d,"email")<< " with subject " <<subject<<endl;
+
+	string msgId=eget(msg[0], "id");
+	string userId=eget(d, "userId");
+	auto seen=db.queryT("select id from queue where msgId=? and userId=?", {msgId, userId});
+	if(!seen.empty()) {
+	  cout<<"Skipping message to "<<eget(d,"email")<<", sent them a copy already perhaps on another list"<<endl;
+	  continue;
+	}
+	else
+	  cout<<"Queued to "<<eget(d,"email")<< " with subject " <<subject<<endl;	
+	
 	db.addValue({
 	    {"id", getLargeId()},
-	    {"msgId", eget(msg[0], "id")},
+	    {"msgId", msgId},
 	    {"subject", subject},
 	    {"sent", false},
 	    {"bounced", false},
@@ -456,6 +466,7 @@ int main(int argc, char** argv)
 	data["weblink"] = "https://berthub.eu/ckmailer/msg/"+eget(q, "msgId");
 	data["unsubscribelink"] = "https://berthub.eu/ckmailer/manage.html?timsi="+eget(q, "timsi");
 	data["channelName"] = eget(q, "channelName");
+	data["channelLink"] = "https://berthub.eu/ckmailer/channel.html?channelId="+eget(q, "channelId");
 
 	string textmsg = e.render(eget(q, "textversion"), data);
 	e.set_html_autoescape(true); // NOTE WELL!
