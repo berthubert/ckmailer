@@ -103,7 +103,7 @@ string markdownToWeb(const std::string& input, const std::string& title)
 int main(int argc, char** argv)
 {
   signal(SIGPIPE, SIG_IGN); // every TCP application needs this
-  argparse::ArgumentParser args("bmailer", "0.0");
+  argparse::ArgumentParser args("ckmailer", "0.0");
   map<string, string> settings;
   args.add_argument("--smtp-server").help("IP address of SMTP smart host. If empty, no mail will get sent").default_value("").store_into(settings["smtp-server"]);
   args.add_argument("--imap-server").help("IMAP server to query").default_value("").store_into(settings["imap-server"]);
@@ -365,7 +365,7 @@ int main(int argc, char** argv)
 		textmsg,
 		htmlmsg,
 		"",
-		"bmailer+"+getLargeId()+"@hubertnet.nl", att);
+		"ckmailer+"+getLargeId()+"@hubertnet.nl", att);
     }
     else if(cmds[0]=="launch") {
       // launch m1 c2 "Welkom"
@@ -480,7 +480,7 @@ int main(int argc, char** argv)
 	cout<<"Sending to "<< eget(q, "destination") <<endl;
 
 	vector<pair<string,string>> headers = {
-	  {"List-Unsubscribe", "<https://berthub.eu/ckmailer/unsubscribe/"+eget(q, "userId")+"/"+eget(q, "channelId")+">, <mailto:bmailer+"+eget(q, "queueId")+"@hubertnet.nl?subject="+eget(q, "userId")+"/"+eget(q, "channelId")+">"},
+	  {"List-Unsubscribe", "<https://berthub.eu/ckmailer/unsubscribe/"+eget(q, "userId")+"/"+eget(q, "channelId")+">, <mailto:ckmailer+"+eget(q, "queueId")+"@hubertnet.nl?subject="+eget(q, "userId")+"/"+eget(q, "channelId")+">"},
 	  {"List-Unsubscribe-Post", "List-Unsubscribe=One-Click"},
 	  {"List-ID", eget(q, "channelName") + " <"+eget(q, "channelId")+">"}
 	};
@@ -493,7 +493,7 @@ int main(int argc, char** argv)
 		  textmsg,
 		  htmlmsg,
 		  "",
-		  "bmailer+"+ eget(q, "queueId") +"@hubertnet.nl", att, headers);
+		  "ckmailer+"+ eget(q, "queueId") +"@hubertnet.nl", att, headers);
 
 	db.queryT("update queue set sent=1 where id=?", {eget(q, "queueId")});
 	sleep(1);
@@ -541,7 +541,7 @@ int main(int argc, char** argv)
       }
     }
     if (imap_command["--active"] == true && !handled.empty()) {
-      imapMove(ComboAddress(settings["imap-server"], 993), "bmailer", settings["imap-password"], handled);
+      imapMove(ComboAddress(settings["imap-server"], 993), "ckmailer", settings["imap-password"], handled);
     }
 
   }
