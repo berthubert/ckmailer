@@ -105,7 +105,9 @@ int main(int argc, char** argv)
   signal(SIGPIPE, SIG_IGN); // every TCP application needs this
   argparse::ArgumentParser args("bmailer", "0.0");
   map<string, string> settings;
+  map<string, int> intSettings;
   args.add_argument("--smtp-server").help("IP address of SMTP smart host. If empty, no mail will get sent").default_value("").store_into(settings["smtp-server"]);
+  args.add_argument("--smtp-port").help("Port of SMTP smart host").scan<'d', int>().default_value(25).store_into(intSettings["smtp-port"]);
   args.add_argument("--imap-server").help("IMAP server to query").default_value("").store_into(settings["imap-server"]);
   args.add_argument("--imap-user").help("IMAP server to query").default_value("").store_into(settings["imap-user"]);
   args.add_argument("--imap-password").help("IMAP server to query").default_value("").store_into(settings["imap-password"]);
@@ -359,7 +361,7 @@ int main(int argc, char** argv)
 	att.push_back({r["id"], r["filename"]});
             
       sendEmail(settings["smtp-server"],  // system setting
-		25,
+		intSettings["smtp-port"],
 		"bert@hubertnet.nl", // channel setting really
 		dest,        
 		"test email", // subject
@@ -488,7 +490,7 @@ int main(int argc, char** argv)
 	
 	if(1)
 	sendEmail(settings["smtp-server"],  // system setting
-		  25,
+		  intSettings["smtp-port"],
 		  settings["sender-email"], // channel setting really
 		  eget(q, "destination"),        
 		  eget(q, "subject"), // subject
