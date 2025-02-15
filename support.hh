@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <set>
 #include "nonblocker.hh"
-void sendEmail(const std::string& server, const std::string& from, const std::string& to, const std::string& subject, const std::string& textBody, const std::string& htmlBody, const std::string& bcc="", const std::string& envelopeFrom="", const std::vector<std::pair<std::string, std::string>>& att={},
+void sendEmail(const std::string& server, const int serverPort, const std::string& from, const std::string& to, const std::string& subject, const std::string& textBody, const std::string& htmlBody, const std::string& bcc="", const std::string& envelopeFrom="", const std::vector<std::pair<std::string, std::string>>& att={},
 	       const std::vector<std::pair<std::string, std::string>>& headers={});
 uint64_t getRandom64();
 std::string getLargeId();
