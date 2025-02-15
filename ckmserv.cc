@@ -363,6 +363,7 @@ int main(int argc, char** argv)
     }
     tp.getLease()->addValue({{"timestamp", time(0)}, {"action", "user-invite"}, {"userId", userId}, {"email", email}, {"created", created}, {"lang", lang}}, "log");
     sendEmail("10.0.0.2",  // system setting
+	      25,
 	      "bert@hubertnet.nl", // channel setting really
 	      email,
 	      subject,

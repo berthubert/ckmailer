@@ -359,6 +359,7 @@ int main(int argc, char** argv)
 	att.push_back({r["id"], r["filename"]});
             
       sendEmail(settings["smtp-server"],  // system setting
+		25,
 		"bert@hubertnet.nl", // channel setting really
 		dest,        
 		"test email", // subject
@@ -487,6 +488,7 @@ int main(int argc, char** argv)
 	
 	if(1)
 	sendEmail(settings["smtp-server"],  // system setting
+		  25,
 		  settings["sender-email"], // channel setting really
 		  eget(q, "destination"),        
 		  eget(q, "subject"), // subject
