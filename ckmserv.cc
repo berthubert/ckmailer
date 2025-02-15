@@ -37,7 +37,11 @@ int main(int argc, char** argv)
   signal(SIGPIPE, SIG_IGN); // every TCP application needs this
 
   argparse::ArgumentParser args("ckmserv", "0.0");
-  args.add_argument("--smtp-server").help("IP address of SMTP smart host. If empty, no mail will get sent").default_value("");
+
+  map<string, string> settings;
+  map<string, int> intSettings;
+  args.add_argument("--smtp-server").help("IP address of SMTP smart host. If empty, no mail will get sent").default_value("").store_into(settings["smtp-server"]);
+  args.add_argument("--smtp-port").help("Port of SMTP smart host").scan<'d', int>().default_value(25).store_into(intSettings["smtp-port"]);
   
   SQLiteWriter db("ckmailer.sqlite3", { {"users", {{"email", "collate nocase"}}}});
   try {
@@ -287,7 +291,7 @@ int main(int argc, char** argv)
     res.set_content(j.dump(), "application/json");
   });  
 
-  svr.Post(R"(/send-user-account-link)", [&tp](const httplib::Request &req, httplib::Response &res) {
+  svr.Post(R"(/send-user-account-link)", [&tp, &settings, &intSettings](const httplib::Request &req, httplib::Response &res) {
     string email = req.get_file_value("email").content;
     string highlight = req.get_file_value("highlight").content;
     nlohmann::json j;
@@ -362,8 +366,8 @@ int main(int argc, char** argv)
       }
     }
     tp.getLease()->addValue({{"timestamp", time(0)}, {"action", "user-invite"}, {"userId", userId}, {"email", email}, {"created", created}, {"lang", lang}}, "log");
-    sendEmail("10.0.0.2",  // system setting
-	      25,
+    sendEmail(settings["smtp-server"],  // system setting
+	      intSettings["smtp-port"],
 	      "bert@hubertnet.nl", // channel setting really
 	      email,
 	      subject,
