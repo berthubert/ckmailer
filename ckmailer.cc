@@ -592,6 +592,7 @@ int main(int argc, char** argv)
     if (imap_command["--active"] == true && !handled.empty()) {
       imapMove(ComboAddress(settings["imap-server"], 993), "bmailer", settings["imap-password"], handled);
     }
-
+  } else {
+    cout<<args<<endl;
   }
 }
