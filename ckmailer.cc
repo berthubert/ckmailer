@@ -194,7 +194,19 @@ int main(int argc, char** argv)
 
   argparse::ArgumentParser queue_command("queue");
   queue_command.add_description("Queue management");
-  queue_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
+
+  argparse::ArgumentParser queue_list_command("list");
+  queue_list_command.add_description("List all queued messages");
+  queue_command.add_subparser(queue_list_command);
+
+  argparse::ArgumentParser queue_ls_command("ls");
+  queue_ls_command.add_description("List all queued messages");
+  queue_command.add_subparser(queue_ls_command);
+
+  argparse::ArgumentParser queue_run_command("run");
+  queue_run_command.add_description("Send all messages in the queue");
+  queue_command.add_subparser(queue_run_command);
+
   args.add_subparser(queue_command);
 
   argparse::ArgumentParser imap_command("imap");
@@ -487,15 +499,13 @@ int main(int argc, char** argv)
     }
   }
   else if(args.is_subcommand_used(queue_command)) {
-    auto cmds = queue_command.get<std::vector<std::string>>("commands");
-    fmt::print("Got queue commands: {}\n", cmds);
-    if(cmds[0] == "ls" || cmds[0] == "list") {
+    if(queue_command.is_subcommand_used(queue_list_command) || queue_command.is_subcommand_used(queue_ls_command)) {
       auto queued = db.queryT("select * from queue where sent=0");
       for(auto& q: queued) {
 	cout << "Should send to "<<eget(q, "destination") << endl;
       }
     }
-    else if(cmds[0] == "run") {
+    else if(queue_command.is_subcommand_used(queue_run_command)) {
       auto queued = db.queryT("select queue.id queueId, msgId, channelId, channelName, timsi, userId, destination, subject, textversion, htmlversion from queue,msgs where sent=0 and msgs.id=queue.msgId");
 
       for(auto& q: queued) {
@@ -536,6 +546,9 @@ int main(int argc, char** argv)
 	db.queryT("update queue set sent=1 where id=?", {eget(q, "queueId")});
 	sleep(1);
       }
+    }
+    else {
+      cout<<queue_command<<endl;
     }
   }
   else if(args.is_subcommand_used(imap_command)) {
