@@ -114,20 +114,77 @@ int main(int argc, char** argv)
   args.add_argument("--save-settings").help("store settings from this command line to the database").flag();
   
   argparse::ArgumentParser channel_command("channel");
-  channel_command.add_description("Add channels");
-  channel_command.add_argument("commands").help("channel commands").default_value(vector<string>()).remaining();
-  
+  channel_command.add_description("Manage channels");
+
+  argparse::ArgumentParser channel_create_command("create");
+  channel_create_command.add_description("Create a new channel");
+  channel_create_command.add_argument("name").help("a short name for the channel").required();
+  channel_create_command.add_argument("description").help("a slightly longer description").required();
+  channel_command.add_subparser(channel_create_command);
+
+  argparse::ArgumentParser channel_list_command("list");
+  channel_list_command.add_description("List all channels");
+  channel_command.add_subparser(channel_list_command);
+
+  argparse::ArgumentParser channel_ls_command("ls");
+  channel_ls_command.add_description("List all channels");
+  channel_command.add_subparser(channel_ls_command);
+
   args.add_subparser(channel_command);
 
   argparse::ArgumentParser user_command("user");
   user_command.add_description("Manage users");
-  user_command.add_argument("commands").help("user commands").default_value(vector<string>()).remaining();
-  
+
+  argparse::ArgumentParser user_add_command("add");
+  user_add_command.add_description("Add a new user");
+  user_add_command.add_argument("email").help("the user's email address").required();
+  user_command.add_subparser(user_add_command);
+
+  argparse::ArgumentParser user_subscribe_command("subscribe");
+  user_subscribe_command.add_description("Subscribe an email address to a channel");
+  user_subscribe_command.add_argument("email").help("the user's email address").required();
+  user_subscribe_command.add_argument("channel").help("a channel identifier like c2").required();
+  user_command.add_subparser(user_subscribe_command);
+
+  argparse::ArgumentParser user_list_command("list");
+  user_list_command.add_description("List all users");
+  user_command.add_subparser(user_list_command);
+
+  argparse::ArgumentParser user_ls_command("ls");
+  user_ls_command.add_description("List all users");
+  user_command.add_subparser(user_ls_command);
+
   args.add_subparser(user_command);
 
   argparse::ArgumentParser msg_command("msg");
   msg_command.add_description("Manage msgs");
-  msg_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
+
+  argparse::ArgumentParser msg_read_command("read");
+  msg_read_command.add_description("Read a Markdown file into the database as a message");
+  msg_read_command.add_argument("filename").help("file containing a body in Markdown").required();
+  msg_read_command.add_argument("language").help("language the message is written in").choices("nl", "en").required();
+  msg_command.add_subparser(msg_read_command);
+
+  argparse::ArgumentParser msg_list_command("list");
+  msg_list_command.add_description("List all messages");
+  msg_command.add_subparser(msg_list_command);
+
+  argparse::ArgumentParser msg_ls_command("ls");
+  msg_ls_command.add_description("List all messages");
+  msg_command.add_subparser(msg_ls_command);
+
+  argparse::ArgumentParser msg_send_command("send");
+  msg_send_command.add_description("Send a message to an email address immediately");
+  msg_send_command.add_argument("message").help("a message identifier like m2").required();
+  msg_send_command.add_argument("destination").help("an email address").required();
+  msg_command.add_subparser(msg_send_command);
+
+  argparse::ArgumentParser msg_launch_command("launch");
+  msg_launch_command.add_description("Queue a message to be sent to all subscribers");
+  msg_launch_command.add_argument("message").help("a message identifier like m2").required();
+  msg_launch_command.add_argument("channel").help("a channel identifier like c2").required();
+  msg_launch_command.add_argument("subject").help("the message subject").required();
+  msg_command.add_subparser(msg_launch_command);
   
   args.add_subparser(msg_command);
 
@@ -137,12 +194,23 @@ int main(int argc, char** argv)
 
   argparse::ArgumentParser queue_command("queue");
   queue_command.add_description("Queue management");
-  queue_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
+
+  argparse::ArgumentParser queue_list_command("list");
+  queue_list_command.add_description("List all queued messages");
+  queue_command.add_subparser(queue_list_command);
+
+  argparse::ArgumentParser queue_ls_command("ls");
+  queue_ls_command.add_description("List all queued messages");
+  queue_command.add_subparser(queue_ls_command);
+
+  argparse::ArgumentParser queue_run_command("run");
+  queue_run_command.add_description("Send all messages in the queue");
+  queue_command.add_subparser(queue_run_command);
+
   args.add_subparser(queue_command);
 
   argparse::ArgumentParser imap_command("imap");
   imap_command.add_description("Imap management");
-  imap_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
   imap_command.add_argument("--active").help("act on messages, don't just observe").flag();
   args.add_subparser(imap_command);
 
@@ -231,14 +299,12 @@ int main(int argc, char** argv)
   
   fmt::print("settings: {}\n", settings);
   if(args.is_subcommand_used(user_command)) {
-    auto cmds = user_command.get<std::vector<std::string>>("commands");
-    fmt::print("Got user commands: {}\n", cmds);
-    if(cmds[0]=="add") {
-      db.addValue({{"id", getLargeId()}, {"timsi", getLargeId()}, {"email", cmds[1]}}, "users");
+    if(user_command.is_subcommand_used(user_add_command)) {
+      db.addValue({{"id", getLargeId()}, {"timsi", getLargeId()}, {"email", user_add_command.get("email")}}, "users");
     }
-    if(cmds[0]=="subscribe") {
-      string email=cmds[1];
-      string channel=cmds[2];
+    else if(user_command.is_subcommand_used(user_subscribe_command)) {
+      string email = user_subscribe_command.get("email");
+      string channel = user_subscribe_command.get("channel");
       auto user = db.queryT("select * from users where email=?", {email});
       string userId;
       if(user.empty()) {
@@ -258,26 +324,20 @@ int main(int argc, char** argv)
       db.addOrReplaceValue({{"userId", userId}, {"channelId", eget(channelr[0], "id")}}, "subscriptions");
       cout<<"User is now subscribed to "<<eget(channelr[0], "name")<<endl;
     }
-    else if(cmds[0]=="list" || cmds[0]=="ls") {
+    else if(user_command.is_subcommand_used(user_list_command) || user_command.is_subcommand_used(user_ls_command)) {
       auto rows = db.query("select rowid,* from users");
       for(auto& r : rows)
 	cout << 'u'<< r["rowid"] << '\t' << r["email"]<< '\t' << r["id"]<<'\n';
     }
-	
     else
-      cout<<"Unknown command "<<cmds[0]<<endl;
+      cout<<user_command<<endl;
   }
   else if(args.is_subcommand_used(msg_command)) {
-    auto cmds = msg_command.get<std::vector<std::string>>("commands");
-    if(cmds[0]=="read") {
-      if(cmds.size() != 3) {
-	fmt::print("Syntax: msg read fname language (nl, en)\n");
-	return EXIT_FAILURE;
-      }
+    if(msg_command.is_subcommand_used(msg_read_command)) {
+      string filename = msg_read_command.get("filename");
+      string markdown = getContentsOfFile(filename);
+      string lang = msg_read_command.get("language");
 
-      string markdown = getContentsOfFile(cmds[1]);
-      string lang = cmds[2];
-      
       // no prefix, no postfix, no replacements
       string webVersion = markdownToWeb(markdown, "Een CKMailer nieuwsbrief / a CKMailer newsletter");
       
@@ -330,14 +390,14 @@ int main(int argc, char** argv)
 	db.addValue({{"id", to.cid}, {"msgId", id}, {"filename", to.fname}}, "attachments");
       }
     }
-    else if(cmds[0]=="list" || cmds[0]=="ls") {
+    else if(msg_command.is_subcommand_used(msg_list_command) || msg_command.is_subcommand_used(msg_ls_command)) {
       auto rows = db.query("select rowid,* from msgs");
       for(auto& r : rows)
 	cout << 'm'<< r["rowid"] << '\t' << r["markdown"].length()<< '\t' << r["id"]<<'\n';
     }
-    else if(cmds[0]=="send") {
-      string rowid = cmds[1].substr(1);
-      string dest=cmds[2];
+    else if(msg_command.is_subcommand_used(msg_send_command)) {
+      string rowid = msg_send_command.get("message").substr(1);
+      string dest = msg_send_command.get("destination");
       auto rows = db.query("select * from msgs where rowid=?", {rowid});
 
       nlohmann::json data = nlohmann::json::object();
@@ -367,15 +427,11 @@ int main(int argc, char** argv)
 		"",
 		"bmailer+"+getLargeId()+"@hubertnet.nl", att);
     }
-    else if(cmds[0]=="launch") {
+    else if(msg_command.is_subcommand_used(msg_launch_command)) {
       // launch m1 c2 "Welkom"
-      if(cmds.size() != 4) {
-	cout<<"syntax launch m1 c2 \"subject blah\"\n";
-	return EXIT_FAILURE;
-      }
-      int64_t msgId = atoi(cmds[1].substr(1).c_str());
-      int64_t channelId=atoi(cmds[2].substr(1).c_str());
-      string subject = cmds[3];
+      int64_t msgId = atoi(msg_launch_command.get("message").substr(1).c_str());
+      int64_t channelId = atoi(msg_launch_command.get("channel").substr(1).c_str());
+      string subject = msg_launch_command.get("subject");
       
       auto msg = db.queryT("select * from msgs where rowid=?", {msgId});
       if(msg.empty()) {
@@ -420,44 +476,35 @@ int main(int argc, char** argv)
       db.addValue({{"channelId", eget(channel[0], "id")}, {"msgId", eget(msg[0], "id")}, {"timestamp", time(0)}, {"subject", subject}}, "launches");
     }
     else 
-      cout<<"Unknown msg command "<<cmds[0]<<endl;
+      cout<<msg_command<<endl;
   }
   else if(args.is_subcommand_used(channel_command)) {
-    auto cmds = channel_command.get<std::vector<std::string>>("commands");
-    fmt::print("Got channel commands: {}\n", cmds);
-    if(cmds[0]=="create") {
-      if(cmds.size() < 3) {
-	cout<<"Syntax: create cannelname channeldescription\n";
-	return EXIT_FAILURE;
-      }
-      string channel = cmds[1];
-      string description = cmds[2];
+    if(channel_command.is_subcommand_used(channel_create_command)) {
+      string channel = channel_create_command.get("name");
+      string description = channel_create_command.get("description");
       string id = getLargeId();
 
       db.addValue({{"id", id}, {"name", channel}, {"description", description}}, "channels");
       auto res = db.query("select last_insert_rowid() rid");
       cout<<"created new channel c"<<res[0]["rid"]<<", https://berthub.eu/ckmailer/channel/"<<id<<endl;
     }
-    else if(cmds[0]=="list" || cmds[0]=="ls") {
+    else if(channel_command.is_subcommand_used(channel_list_command) || channel_command.is_subcommand_used(channel_ls_command)) {
       auto rows = db.query("select rowid,* from channels");
       for(auto& r : rows)
 	cout << 'c'<< r["rowid"] << '\t' << r["name"]<< '\t' << r["description"]<<"\t"<< r["id"]<<'\n';
     }
     else {
-      cout<<"Unknown channel command "<<cmds[0]<<endl;
+      cout<<channel_command<<endl;
     }
-
   }
   else if(args.is_subcommand_used(queue_command)) {
-    auto cmds = queue_command.get<std::vector<std::string>>("commands");
-    fmt::print("Got queue commands: {}\n", cmds);
-    if(cmds[0] == "ls" || cmds[0] == "list") {
+    if(queue_command.is_subcommand_used(queue_list_command) || queue_command.is_subcommand_used(queue_ls_command)) {
       auto queued = db.queryT("select * from queue where sent=0");
       for(auto& q: queued) {
 	cout << "Should send to "<<eget(q, "destination") << endl;
       }
     }
-    else if(cmds[0] == "run") {
+    else if(queue_command.is_subcommand_used(queue_run_command)) {
       auto queued = db.queryT("select queue.id queueId, msgId, channelId, channelName, timsi, userId, destination, subject, textversion, htmlversion from queue,msgs where sent=0 and msgs.id=queue.msgId");
 
       for(auto& q: queued) {
@@ -499,10 +546,12 @@ int main(int argc, char** argv)
 	sleep(1);
       }
     }
+    else {
+      cout<<queue_command<<endl;
+    }
   }
   else if(args.is_subcommand_used(imap_command)) {
-    
-    auto cmds = imap_command.get<std::vector<std::string>>("commands");
+
     auto uhdrs = imapGetMessages(ComboAddress(settings["imap-server"], 993),
 				 settings["imap-user"],
 				 settings["imap-password"]);
@@ -543,6 +592,7 @@ int main(int argc, char** argv)
     if (imap_command["--active"] == true && !handled.empty()) {
       imapMove(ComboAddress(settings["imap-server"], 993), "bmailer", settings["imap-password"], handled);
     }
-
+  } else {
+    cout<<args<<endl;
   }
 }
