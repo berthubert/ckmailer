@@ -211,7 +211,6 @@ int main(int argc, char** argv)
 
   argparse::ArgumentParser imap_command("imap");
   imap_command.add_description("Imap management");
-  imap_command.add_argument("commands").help("msg commands").default_value(vector<string>()).remaining();
   imap_command.add_argument("--active").help("act on messages, don't just observe").flag();
   args.add_subparser(imap_command);
 
@@ -552,8 +551,7 @@ int main(int argc, char** argv)
     }
   }
   else if(args.is_subcommand_used(imap_command)) {
-    
-    auto cmds = imap_command.get<std::vector<std::string>>("commands");
+
     auto uhdrs = imapGetMessages(ComboAddress(settings["imap-server"], 993),
 				 settings["imap-user"],
 				 settings["imap-password"]);
