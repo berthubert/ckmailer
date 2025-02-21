@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>{{ c.name }}</title>
+  <subtitle>{{ c.description }}</subtitle>
+  <link rel="self" href="{{ base }}/feed.xml?channelId={{ c.id }}" />
+  <link rel="alternate" href="{{ base }}/channel.html?channelId={{ c.id }}" />
+  <id>{{ base }}/channel.html?channelId={{ c.id }}</id>
+  <updated>{{ timestamp }}</updated>
+  <author><name>{{ author }}</name></author>
+
+  {% for p in posts %}
+  <entry>
+    <title>{{ p.subject }}</title>
+    <link href="{{ base }}/msg/{{ p.msgId }}" />
+    <id>{{ base }}/msg/{{ p.msgId }}</id>
+    <updated>{{ p.launched }}</updated>
+    <content type="html">{{ p.webversion }}</content>
+  </entry>
+  {% endfor %}
+</feed>
