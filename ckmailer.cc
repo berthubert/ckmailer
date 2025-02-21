@@ -121,8 +121,26 @@ int main(int argc, char** argv)
 
   argparse::ArgumentParser user_command("user");
   user_command.add_description("Manage users");
-  user_command.add_argument("commands").help("user commands").default_value(vector<string>()).remaining();
-  
+
+  argparse::ArgumentParser user_add_command("add");
+  user_add_command.add_description("Add a new user");
+  user_add_command.add_argument("email").help("the user's email address").required();
+  user_command.add_subparser(user_add_command);
+
+  argparse::ArgumentParser user_subscribe_command("subscribe");
+  user_subscribe_command.add_description("Subscribe an email address to a channel");
+  user_subscribe_command.add_argument("email").help("the user's email address").required();
+  user_subscribe_command.add_argument("channel").help("a channel identifier like c2").required();
+  user_command.add_subparser(user_subscribe_command);
+
+  argparse::ArgumentParser user_list_command("list");
+  user_list_command.add_description("List all users");
+  user_command.add_subparser(user_list_command);
+
+  argparse::ArgumentParser user_ls_command("ls");
+  user_ls_command.add_description("List all users");
+  user_command.add_subparser(user_ls_command);
+
   args.add_subparser(user_command);
 
   argparse::ArgumentParser msg_command("msg");
@@ -231,14 +249,12 @@ int main(int argc, char** argv)
   
   fmt::print("settings: {}\n", settings);
   if(args.is_subcommand_used(user_command)) {
-    auto cmds = user_command.get<std::vector<std::string>>("commands");
-    fmt::print("Got user commands: {}\n", cmds);
-    if(cmds[0]=="add") {
-      db.addValue({{"id", getLargeId()}, {"timsi", getLargeId()}, {"email", cmds[1]}}, "users");
+    if(user_command.is_subcommand_used(user_add_command)) {
+      db.addValue({{"id", getLargeId()}, {"timsi", getLargeId()}, {"email", user_add_command.get("email")}}, "users");
     }
-    if(cmds[0]=="subscribe") {
-      string email=cmds[1];
-      string channel=cmds[2];
+    else if(user_command.is_subcommand_used(user_subscribe_command)) {
+      string email = user_subscribe_command.get("email");
+      string channel = user_subscribe_command.get("channel");
       auto user = db.queryT("select * from users where email=?", {email});
       string userId;
       if(user.empty()) {
@@ -258,14 +274,13 @@ int main(int argc, char** argv)
       db.addOrReplaceValue({{"userId", userId}, {"channelId", eget(channelr[0], "id")}}, "subscriptions");
       cout<<"User is now subscribed to "<<eget(channelr[0], "name")<<endl;
     }
-    else if(cmds[0]=="list" || cmds[0]=="ls") {
+    else if(user_command.is_subcommand_used(user_list_command) || user_command.is_subcommand_used(user_ls_command)) {
       auto rows = db.query("select rowid,* from users");
       for(auto& r : rows)
 	cout << 'u'<< r["rowid"] << '\t' << r["email"]<< '\t' << r["id"]<<'\n';
     }
-	
     else
-      cout<<"Unknown command "<<cmds[0]<<endl;
+      cout<<user_command<<endl;
   }
   else if(args.is_subcommand_used(msg_command)) {
     auto cmds = msg_command.get<std::vector<std::string>>("commands");
