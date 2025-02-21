@@ -208,7 +208,32 @@ int main(int argc, char** argv)
     res.set_content(e.render_file("./partials/channel"+lang+".html", data), "text/html");
   });
 
-  
+  svr.Get(R"(/feed.xml)", [&tp](const httplib::Request &req, httplib::Response &res) {
+    string channelId = req.get_param_value("channelId");
+
+    string channelsQuery = "select id, name, description from channels where id=?";
+    auto channels = packResultsJson(tp.getLease()->queryT(channelsQuery, {channelId}));
+    string postsQuery = "select strftime('%FT%TZ', timestamp, 'auto') as launched, msgId, subject, webversion from launches l, msgs m where channelId=? and l.msgId=m.id order by l.timestamp desc limit 10";
+    auto posts = packResultsJson(tp.getLease()->queryT(postsQuery, {channelId}));
+
+    if(channels.empty() || posts.empty()) {
+      res.status = 404;
+      res.set_content(fmt::format("Channel {} does not exist or does not have messages\n", channelId), "text/plain");
+      return;
+    }
+
+    inja::Environment e;
+    e.set_html_autoescape(true);
+    nlohmann::json data;
+    data["base"] = "https://berthub.eu/ckmailer";
+    data["author"] = "Bert Hubert";
+    data["timestamp"] = posts.at(0).at("launched");
+    data["posts"] = std::move(posts);
+    data["c"] = channels.at(0);
+
+    res.set_content(e.render_file("./partials/feed.xml", data), "application/atom+xml");
+  });
+
   svr.Post(R"(/unsubscribe/:userid/:channel)", [&tp](const httplib::Request &req, httplib::Response &res) {
     string userId = req.path_params.at("userid");
     string channelId = req.path_params.at("channel");

@@ -6,6 +6,10 @@ email: ''
 }"
 {% endblock %}
 
+{% block extrameta %}
+<link rel="alternate" type="application/atom+xml" href="feed.xml?channelId={{channelId}}">
+{% endblock %}
+
 {% block javascript %}
 {{ super() }}
 {% endblock %}
