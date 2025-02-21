@@ -114,9 +114,22 @@ int main(int argc, char** argv)
   args.add_argument("--save-settings").help("store settings from this command line to the database").flag();
   
   argparse::ArgumentParser channel_command("channel");
-  channel_command.add_description("Add channels");
-  channel_command.add_argument("commands").help("channel commands").default_value(vector<string>()).remaining();
-  
+  channel_command.add_description("Manage channels");
+
+  argparse::ArgumentParser channel_create_command("create");
+  channel_create_command.add_description("Create a new channel");
+  channel_create_command.add_argument("name").help("a short name for the channel").required();
+  channel_create_command.add_argument("description").help("a slightly longer description").required();
+  channel_command.add_subparser(channel_create_command);
+
+  argparse::ArgumentParser channel_list_command("list");
+  channel_list_command.add_description("List all channels");
+  channel_command.add_subparser(channel_list_command);
+
+  argparse::ArgumentParser channel_ls_command("ls");
+  channel_ls_command.add_description("List all channels");
+  channel_command.add_subparser(channel_ls_command);
+
   args.add_subparser(channel_command);
 
   argparse::ArgumentParser user_command("user");
@@ -455,30 +468,23 @@ int main(int argc, char** argv)
       cout<<msg_command<<endl;
   }
   else if(args.is_subcommand_used(channel_command)) {
-    auto cmds = channel_command.get<std::vector<std::string>>("commands");
-    fmt::print("Got channel commands: {}\n", cmds);
-    if(cmds[0]=="create") {
-      if(cmds.size() < 3) {
-	cout<<"Syntax: create cannelname channeldescription\n";
-	return EXIT_FAILURE;
-      }
-      string channel = cmds[1];
-      string description = cmds[2];
+    if(channel_command.is_subcommand_used(channel_create_command)) {
+      string channel = channel_create_command.get("name");
+      string description = channel_create_command.get("description");
       string id = getLargeId();
 
       db.addValue({{"id", id}, {"name", channel}, {"description", description}}, "channels");
       auto res = db.query("select last_insert_rowid() rid");
       cout<<"created new channel c"<<res[0]["rid"]<<", https://berthub.eu/ckmailer/channel/"<<id<<endl;
     }
-    else if(cmds[0]=="list" || cmds[0]=="ls") {
+    else if(channel_command.is_subcommand_used(channel_list_command) || channel_command.is_subcommand_used(channel_ls_command)) {
       auto rows = db.query("select rowid,* from channels");
       for(auto& r : rows)
 	cout << 'c'<< r["rowid"] << '\t' << r["name"]<< '\t' << r["description"]<<"\t"<< r["id"]<<'\n';
     }
     else {
-      cout<<"Unknown channel command "<<cmds[0]<<endl;
+      cout<<channel_command<<endl;
     }
-
   }
   else if(args.is_subcommand_used(queue_command)) {
     auto cmds = queue_command.get<std::vector<std::string>>("commands");
