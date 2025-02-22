@@ -71,7 +71,7 @@ string toQuotedPrintable(const std::string& in)
       continue;
     }
     string part;
-    if(isprint(c) && c != '=')
+    if(isprint(c) && c != '=' && c != '.')
       part=c;
     else
       part = fmt::sprintf("=%02X", (int)(unsigned char)c);
