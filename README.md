@@ -1,4 +1,4 @@
-# bmailer
+# ckmailer
 self-hosted software for newsletters
 
 There are multiple channels. Subscribers are identified by their email
@@ -15,7 +15,7 @@ unsubscribe link.
 
 # Status
 "works for me", there is no real documentation, you'll likely struggle to
-unststand how this works for now.
+understand how this works for now.
 
 # Requirements
 
