@@ -122,7 +122,7 @@ bool endsWith(const std::string& str, const std::string& suffix) {
 }
 
 
-void sendEmail(const std::string& server, const std::string& from, const std::string& to, const std::string& subject, const std::string& textBody, const std::string& htmlBody, const std::string& bcc, const std::string& envelopeFrom, const std::vector<std::pair<std::string, std::string>>& att,
+void sendEmail(const std::string& server, const int serverPort, const std::string& from, const std::string& to, const std::string& subject, const std::string& textBody, const std::string& htmlBody, const std::string& bcc, const std::string& envelopeFrom, const std::vector<std::pair<std::string, std::string>>& att,
 	       const std::vector<std::pair<std::string, std::string>>& headers)
 {
   string rEnvelopeFrom = envelopeFrom.empty() ? from : envelopeFrom;
@@ -132,7 +132,7 @@ void sendEmail(const std::string& server, const std::string& from, const std::st
     throw std::runtime_error("Illegal character in from or to address");
   }
 
-  ComboAddress mailserver(server, 25);
+  ComboAddress mailserver(server, serverPort);
   Socket s(mailserver.sin4.sin_family, SOCK_STREAM);
 
   SocketCommunicator sc(s);
