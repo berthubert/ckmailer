@@ -4,6 +4,7 @@ sqlitedep = dependency('sqlite3', version : '>=3.48')
 thread_dep = dependency('threads')
 json_dep = dependency('nlohmann_json')
 bcryptcpp_dep = dependency('bcryptcpp', static: true)
+pugi_dep = dependency('pugixml')
 fmt_dep = dependency('fmt', version: '>=9.1.0', static: true)
 simplesockets_dep = dependency('simplesockets', static: true)
 cpphttplib = dependency('cpp-httplib')
@@ -24,5 +25,7 @@ executable('ckm', 'ckmailer.cc',  'support.cc', 'nonblocker.cc', 'imap.cc',
 
 executable('ckmserv', 'ckmserv.cc',  'support.cc', 'nonblocker.cc', 'imap.cc', 
 	dependencies: [sqlitedep, json_dep, fmt_dep, simplesockets_dep, cpphttplib, sqlitewriter_dep,
-	argparse_dep, vcs_dep])
+	argparse_dep, vcs_dep, pugi_dep])
 
+executable('testrunner', 'testrunner.cc', 'support.cc',  
+dependencies: [sqlitedep, json_dep, fmt_dep, sqlitedep, sqlitewriter_dep, doctest_dep, cpphttplib, simplesockets_dep])

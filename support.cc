@@ -297,3 +297,18 @@ std::string urlEscape(const std::string& data)
   }
   return buffer;
 }
+
+std::string concatUrl(const std::string& a, const std::string& b)
+{
+  if(a.empty() || b.empty())
+    return a+b;
+  
+  string ret=a;
+  if(*a.rbegin() == '/')
+    ret.resize(ret.size()-1);
+  
+  if(*b.begin() == '/')
+    return ret+b;
+  else
+    return ret+"/"+b;
+}

@@ -14,7 +14,7 @@ std::string getContentsOfFile(const std::string& fname);
 std::string htmlEscape(const std::string& data);
 std::string urlEscape(const std::string& data);
 std::vector<std::string> splitString(const std::string& str, const std::string& delimiter);
-
+std::string concatUrl(const std::string& a, const std::string& b);
 void replaceSubstring(std::string &originalString, const std::string &searchString, const std::string &replaceString);
 bool endsWith(const std::string& str, const std::string& suffix);
 template<typename T, typename R>
