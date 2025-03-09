@@ -219,7 +219,6 @@ int main(int argc, char** argv)
     if(!args.is_used("--"+name)) {
       auto rows = db.queryT("select value from settings where name=?", {name});
       if(!rows.empty()) {
-	//	cout<<"Retrieved "<<name<<" from database"<<endl;
 	settings[name] = eget(rows[0], "value");
       }
       
