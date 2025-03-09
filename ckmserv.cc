@@ -1,11 +1,13 @@
 #include <fmt/printf.h>
 #include <fmt/ranges.h>
+#include <fmt/chrono.h>
 #include <fmt/os.h>
 #include "support.hh"
 #include "sqlwriter.hh"
 #include "jsonhelper.hh"
 #include "inja.hpp"
 #include "argparse/argparse.hpp"
+#include "pugixml.hpp"
 
 #include "thingpool.hh"
 #include <regex>
@@ -32,12 +34,34 @@ string bestLang(const auto& req)
   return "";
 }
 
+static auto prepRSS(auto& doc, const std::string& title, const std::string& desc, const std::string& baseURL)
+{
+  doc.append_attribute("standalone") = "yes";
+  doc.append_attribute("version") = "1.0";
+  
+  doc.append_attribute("encoding") = "utf-8";
+  pugi::xml_node rss = doc.append_child("rss");
+  rss.append_attribute("version")="2.0";
+  rss.append_attribute("xmlns:atom")="http://www.w3.org/2005/Atom";
+  
+  pugi::xml_node channel = rss.append_child("channel");
+  channel.append_child("title").append_child(pugi::node_pcdata).set_value(title.c_str());
+  channel.append_child("description").append_child(pugi::node_pcdata).set_value(desc.c_str());
+  channel.append_child("link").append_child(pugi::node_pcdata).set_value(baseURL.c_str());
+  channel.append_child("generator").append_child(pugi::node_pcdata).set_value("CKMailer");
+  return channel;
+}
+
+
 int main(int argc, char** argv)
 {
   signal(SIGPIPE, SIG_IGN); // every TCP application needs this
 
   argparse::ArgumentParser args("ckmserv", "0.0");
   args.add_argument("--smtp-server").help("IP address of SMTP smart host. If empty, no mail will get sent").default_value("");
+  map<string, string> settings;
+  args.add_argument("--base-url").help("Base URL of our website").default_value("").store_into(settings["base-url"]);
+  args.add_argument("--save-settings").help("store settings from this command line to the database").flag();
   
   SQLiteWriter db("ckmailer.sqlite3", { {"users", {{"email", "collate nocase"}}}});
   try {
@@ -53,6 +77,36 @@ int main(int argc, char** argv)
   catch (const std::runtime_error& err) {
     std::cout << err.what() << std::endl << args;
     std::exit(1);
+  }
+
+  if (args["--save-settings"] == true) {
+    auto doSetting = [&](const std::string& name) {
+      if(args.is_used("--"+name)) {
+	string value = settings[name];
+	cout<<"Storing --"<<name<< " as "<< value <<endl;
+	db.addOrReplaceValue({{"name", name}, {"value", value}}, "settings");
+      }
+    };
+    for(auto& [name, value] : settings) {
+      doSetting(name);
+    }
+
+    db.queryT("delete from settings where value=''");
+    return EXIT_SUCCESS;
+  }
+
+  auto getSetting = [&](const std::string& name) {
+    if(!args.is_used("--"+name)) {
+      auto rows = db.queryT("select value from settings where name=?", {name});
+      if(!rows.empty()) {
+	settings[name] = eget(rows[0], "value");
+	cout<<name<<" " <<settings[name]<<endl;
+      }
+      
+    }
+  };
+  for(auto& [name, value] : settings) {
+    getSetting(name);
   }
 
   httplib::Server svr;
@@ -175,6 +229,7 @@ int main(int argc, char** argv)
     auto subscription = tp.getLease()->queryT("select * from subscriptions where userId=? and channelId=?", {userId, channelId});
     data["subscribed"] = !subscription.empty();
     data["channelName"] = eget(channel.at(0), "name");
+
     data["email"] = eget(user.at(0), "email");
     string lang = bestLang(req);
     data["lang"] = lang.empty() ? lang : lang.substr(1); // skip the .
@@ -182,7 +237,8 @@ int main(int argc, char** argv)
     res.set_content(e.render_file("./partials/unsubscribe.html", data), "text/html");
   });
 
-  svr.Get(R"(/channel.html)", [&tp](const httplib::Request &req, httplib::Response &res) {
+  const string baseURL = settings["base-url"];
+  svr.Get(R"(/channel.html)", [&tp, baseURL](const httplib::Request &req, httplib::Response &res) {
     string channelId = req.get_param_value("channelId");
     string lang = bestLang(req);
     
@@ -202,7 +258,7 @@ int main(int argc, char** argv)
     data["numsubscribers"] =subscription.size();
     data["channelName"] = eget(channel.at(0), "name");
     data["channelDescription"] = eget(channel.at(0), "description");
-
+    data["rssURL"] = concatUrl(baseURL, "channel-index.xml?channelId="+ channelId);
     data["posts"] = packResultsJson(tp.getLease()->queryT("select * from launches where channelId=? order by timestamp desc", {channelId}));
     data["lang"] = lang.empty() ? lang : lang.substr(1); // skip the .
     res.set_content(e.render_file("./partials/channel"+lang+".html", data), "text/html");
@@ -240,6 +296,71 @@ int main(int argc, char** argv)
     res.set_header("Location", "../../unsubscribe.html?userId="+userId+"&channelId="+channelId);
   });
 
+  // https://berthub.eu/tkconv/search.html?q=bert+hubert&twomonths=false&soorten=alles
+  svr.Get("/channel-index.xml", [&tp, baseURL](const httplib::Request &req, httplib::Response &res) {
+    string channelId;
+    string channelName= "all";
+    
+    if(req.has_param("channelId")) {
+      channelId = req.get_param_value("channelId");
+
+      auto chan = tp.getLease()->queryT("select * from channels where id=?", {channelId});
+      if(chan.empty()) {
+	res.status = 404;
+	res.set_content(fmt::format("Could not find channel {}\n", channelId), "text/plain");
+	return;
+      }
+      channelName=eget(chan[0],"name");
+    }
+
+    
+    auto posts = channelId.empty() ?
+      tp.getLease()->queryT("select * from launches,channels where channels.id=launches.channelId order by timestamp desc") : 
+      tp.getLease()->queryT("select * from launches,channels where channels.id=launches.channelId and channelId=? order by timestamp desc", {channelId});
+
+    pugi::xml_document doc;
+    pugi::xml_node channel = prepRSS(doc, "Channel "+ channelName, "Channel "+ channelName, baseURL);
+    
+    bool first = true;
+    
+    
+    for(auto& p : posts) {
+      pugi::xml_node item = channel.append_child("item");
+      string onderwerp = eget(p, "subject");
+      item.append_child("title").append_child(pugi::node_pcdata).set_value(onderwerp.c_str());
+      onderwerp = eget(p, "name")+" | " +onderwerp;
+      item.append_child("description").append_child(pugi::node_pcdata).set_value(onderwerp.c_str());
+
+      
+      item.append_child("link").append_child(pugi::node_pcdata).set_value(
+									  concatUrl(baseURL, eget(p,"msgId")).c_str());
+      item.append_child("guid").append_child(pugi::node_pcdata).set_value(("ckmailer_"+eget(p, "msgId")).c_str());
+
+      // 2024-12-06T06:01:10.2530000
+      time_t then = std::get<int64_t>(p["timestamp"]);
+     
+      //      <pubDate>Fri, 13 Dec 2024 14:13:41 +0000</pubDate>
+      string date = fmt::format("{:%a, %d %b %Y %H:%M:%S %z}", fmt::localtime(then));
+      item.append_child("pubDate").append_child(pugi::node_pcdata).set_value(date.c_str());
+
+      if(first) {
+	channel.prepend_child("lastBuildDate").append_child(pugi::node_pcdata).set_value(date.c_str());
+	first=false;
+      }
+      
+    }
+
+    if(first) {
+      string date = fmt::format("{:%a, %d %b %Y %H:%M:%S %z}", fmt::localtime(time(0)));
+      channel.append_child("pubDate").append_child(pugi::node_pcdata).set_value(date.c_str());
+    }
+    
+    ostringstream str;
+    doc.save(str);
+    res.set_content(str.str(), "application/xml");
+  });
+
+  
   svr.Get(R"(/)", [&tp](const httplib::Request &req, httplib::Response &res) {
     res.status = 302; // temporary
     res.set_header("Location", "start.html");
