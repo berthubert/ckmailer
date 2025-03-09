@@ -333,7 +333,7 @@ int main(int argc, char** argv)
 
       
       item.append_child("link").append_child(pugi::node_pcdata).set_value(
-									  concatUrl(baseURL, eget(p,"msgId")).c_str());
+									  concatUrl(baseURL, "msg/"+ eget(p,"msgId")).c_str());
       item.append_child("guid").append_child(pugi::node_pcdata).set_value(("ckmailer_"+eget(p, "msgId")).c_str());
 
       // 2024-12-06T06:01:10.2530000
