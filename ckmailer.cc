@@ -477,25 +477,29 @@ int main(int argc, char** argv)
 	for(auto& r : attrows)
 	  att.push_back({r["id"], r["filename"]});
 	cout<<"Sending to "<< eget(q, "destination") <<endl;
-
-	vector<pair<string,string>> headers = {
-	  {"List-Unsubscribe", "<https://berthub.eu/ckmailer/unsubscribe/"+eget(q, "userId")+"/"+eget(q, "channelId")+">, <mailto:bmailer+"+eget(q, "queueId")+"@hubertnet.nl?subject="+eget(q, "userId")+"/"+eget(q, "channelId")+">"},
-	  {"List-Unsubscribe-Post", "List-Unsubscribe=One-Click"},
-	  {"List-ID", eget(q, "channelName") + " <"+eget(q, "channelId")+">"}
-	};
-	
-	if(1)
-	sendEmail(settings["smtp-server"],  // system setting
-		  settings["sender-email"], // channel setting really
-		  eget(q, "destination"),        
-		  eget(q, "subject"), // subject
-		  textmsg,
-		  htmlmsg,
-		  "",
-		  "bmailer+"+ eget(q, "queueId") +"@hubertnet.nl", att, headers);
-
-	db.queryT("update queue set sent=1 where id=?", {eget(q, "queueId")});
-	sleep(1);
+	try {
+	  vector<pair<string,string>> headers = {
+	    {"List-Unsubscribe", "<https://berthub.eu/ckmailer/unsubscribe/"+eget(q, "userId")+"/"+eget(q, "channelId")+">, <mailto:bmailer+"+eget(q, "queueId")+"@hubertnet.nl?subject="+eget(q, "userId")+"/"+eget(q, "channelId")+">"},
+	    {"List-Unsubscribe-Post", "List-Unsubscribe=One-Click"},
+	    {"List-ID", eget(q, "channelName") + " <"+eget(q, "channelId")+">"}
+	  };
+	  
+	  if(1)
+	    sendEmail(settings["smtp-server"],  // system setting
+		      settings["sender-email"], // channel setting really
+		      eget(q, "destination"),        
+		      eget(q, "subject"), // subject
+		      textmsg,
+		      htmlmsg,
+		      "",
+		      "bmailer+"+ eget(q, "queueId") +"@hubertnet.nl", att, headers);
+	  
+	  db.queryT("update queue set sent=1 where id=?", {eget(q, "queueId")});
+	  sleep(1);
+	}
+	catch(std::exception& e) {
+	  fmt::print("Failed to send message to {} : {}\n", eget(q, "destination"), e.what());
+	}
       }
     }
   }
