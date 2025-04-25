@@ -420,13 +420,14 @@ int main(int argc, char** argv)
       res.set_content(j.dump(), "application/json");
       return;
     }
-    
-    if(email.empty()) {
+    // this is just to prevent the database getting polluted by attempts to hack us
+    if(email.empty() || email.find_first_of(" \n\t()") != string::npos || email.find('@') == string::npos) {
       j["ok"]=0;
-      j["message"] = "User field empty";
+      j["message"] = "Email field invalid";
       res.set_content(j.dump(), "application/json");
       return;
     }
+
     string lang = bestLang(req); // .nl dutch, empty string for english    
     cout << "Possible new user "<<email<<", lang '"<<lang<<"'"<<endl;
     auto db = tp.getLease();
