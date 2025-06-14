@@ -435,7 +435,7 @@ int main(int argc, char** argv)
 
       db.addValue({{"id", id}, {"name", channel}, {"description", description}}, "channels");
       auto res = db.query("select last_insert_rowid() rid");
-      cout<<"created new channel c"<<res[0]["rid"]<<", https://berthub.eu/ckmailer/channel/"<<id<<endl;
+      cout<<"created new channel c"<<res[0]["rid"]<<", https://berthub.eu/ckmailer/channel.html?channelId="<<id<<endl;
     }
     else if(cmds[0]=="list" || cmds[0]=="ls") {
       auto rows = db.query("select rowid,* from channels");
