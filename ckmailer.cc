@@ -130,6 +130,11 @@ int main(int argc, char** argv)
   channel_ls_command.add_description("List all channels");
   channel_command.add_subparser(channel_ls_command);
 
+  argparse::ArgumentParser channel_counts_command("counts");
+  channel_counts_command.add_description("List all channel counts");
+  channel_command.add_subparser(channel_counts_command);
+
+  
   args.add_subparser(channel_command);
 
   argparse::ArgumentParser user_command("user");
@@ -154,6 +159,13 @@ int main(int argc, char** argv)
   user_ls_command.add_description("List all users");
   user_command.add_subparser(user_ls_command);
 
+
+  argparse::ArgumentParser user_show_command("show");
+  user_show_command.add_description("Show specific user");
+  user_show_command.add_argument("email", "email address of user");
+  user_command.add_subparser(user_show_command);
+
+  
   args.add_subparser(user_command);
 
   argparse::ArgumentParser msg_command("msg");
@@ -203,10 +215,20 @@ int main(int argc, char** argv)
   queue_ls_command.add_description("List all queued messages");
   queue_command.add_subparser(queue_ls_command);
 
+  argparse::ArgumentParser queue_stats_command("stats");
+  queue_stats_command.add_description("List all queued messages");
+  queue_command.add_subparser(queue_stats_command);
+
+  
   argparse::ArgumentParser queue_run_command("run");
   queue_run_command.add_description("Send all messages in the queue");
   queue_command.add_subparser(queue_run_command);
 
+  argparse::ArgumentParser queue_clear_command("clear");
+  queue_clear_command.add_description("Clear all unsent messages from the queue");
+  queue_command.add_subparser(queue_clear_command);
+
+  
   args.add_subparser(queue_command);
 
   argparse::ArgumentParser imap_command("imap");
@@ -328,6 +350,12 @@ int main(int argc, char** argv)
       for(auto& r : rows)
 	cout << 'u'<< r["rowid"] << '\t' << r["email"]<< '\t' << r["id"]<<'\n';
     }
+    else if(user_command.is_subcommand_used(user_show_command)) {
+      auto rows = db.query("select channels.rowid,channels.name,users.email from users,subscriptions,channels where email like ? and subscriptions.userId = users.id and channels.id=channelId", {user_show_command.get("email")});
+      for(auto& r : rows)
+	cout << r["email"]<<" c"<< r["rowid"] << '\t' << r["name"]<<'\n';
+    }
+
     else
       cout<<user_command<<endl;
   }
@@ -492,6 +520,12 @@ int main(int argc, char** argv)
       for(auto& r : rows)
 	cout << 'c'<< r["rowid"] << '\t' << r["name"]<< '\t' << r["description"]<<"\t"<< r["id"]<<'\n';
     }
+    else if(channel_command.is_subcommand_used(channel_counts_command)) {
+      auto rows = db.query("select channels.rowid, name, description, count(1) c from subscriptions,channels where channels.id=channelid group by channelId order by 1");
+      for(auto& r : rows)
+	cout << 'c'<< r["rowid"] << '\t' << r["name"]<< '\t' << r["description"]<<"\t"<< r["c"]<<'\n';
+    }
+
     else {
       cout<<channel_command<<endl;
     }
@@ -502,6 +536,16 @@ int main(int argc, char** argv)
       for(auto& q: queued) {
 	cout << "Should send to "<<eget(q, "destination") << endl;
       }
+    }
+    else if(queue_command.is_subcommand_used(queue_stats_command)) {
+      auto s = db.queryT("select count(1) filter (where sent=1) sent, count(1) filter (where bounced=1) bounced, count(1) filter (where sent=0) unsent from queue");
+      cout << "Sent messages: "<< iget(s[0], "sent") << endl;
+      cout << "Unsent messages: "<< iget(s[0], "unsent") << endl;
+      cout << "Bounced: "<< iget(s[0], "bounced") << endl;
+      
+    }
+    else if(queue_command.is_subcommand_used(queue_clear_command)) {
+      db.queryT("delete from queue where sent=0");
     }
     else if(queue_command.is_subcommand_used(queue_run_command)) {
       auto queued = db.queryT("select queue.id queueId, msgId, channelId, channelName, timsi, userId, destination, subject, textversion, htmlversion from queue,msgs where sent=0 and msgs.id=queue.msgId");
