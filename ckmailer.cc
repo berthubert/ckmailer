@@ -418,7 +418,7 @@ int main(int argc, char** argv)
       textVersion += markdownToText(markdown);
 
       if(lang == "nl") 
-	textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}} of om je abonnementen te beheren. Op {{channelLink}} kan je het archief fincen, en kunnen aneren zich ook inschrijven.\n";
+	textVersion += "\nKlik op {{unsubscribelink}} om je af te melden voor de email lijst {{channelName}} of om je abonnementen te beheren. Op {{channelLink}} kan je het archief vinden, en kunnen anderen zich ook inschrijven.\n";
       else
 	textVersion += "\nClick here {{unsubscribelink}} to unsubscribe from list {{channelName}} or to manage your subcriptions. On {{channelLink}} you'll find the archive, and links for other people to subscribe to the list.\n";
       
