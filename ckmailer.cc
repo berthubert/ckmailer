@@ -100,6 +100,18 @@ string markdownToWeb(const std::string& input, const std::string& title)
 }
 
 
+std::string humanTimeShort(time_t t)
+{
+  struct tm tm={0};
+  localtime_r(&t, &tm);
+
+  char buffer[80];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M", &tm);
+  // strftime(buffer, sizeof(buffer), "%F %T ", &tm);
+  return buffer;
+}
+
+
 int main(int argc, char** argv)
 {
   signal(SIGPIPE, SIG_IGN); // every TCP application needs this
@@ -236,6 +248,15 @@ int main(int argc, char** argv)
   imap_command.add_argument("--active").help("act on messages, don't just observe").flag();
   args.add_subparser(imap_command);
 
+
+  argparse::ArgumentParser log_command("log");
+  log_command.add_description("Show log");
+
+  argparse::ArgumentParser log_show_command("show");
+  log_show_command.add_description("Show recent log messages");
+  log_command.add_subparser(log_show_command);
+  args.add_subparser(log_command);
+  
   
   SQLiteWriter db("ckmailer.sqlite3", {
       {"subscriptions",
@@ -639,7 +660,37 @@ int main(int argc, char** argv)
     if (imap_command["--active"] == true && !handled.empty()) {
       imapMove(ComboAddress(settings["imap-server"], 993), "bmailer", settings["imap-password"], handled);
     }
-  } else {
+  }
+  else if(args.is_subcommand_used(log_command)) {
+    if(log_command.is_subcommand_used(log_show_command)) {
+      cout << "show logs"<<endl;
+      time_t lim = time(0) - 7*86400;
+      auto rows = db.queryT("select * from log where timestamp > ? order by timestamp asc", {lim});
+
+      // CREATE TABLE IF NOT EXISTS "log" ( 'timestamp' INT , "action" TEXT, "userId" TEXT, "email" TEXT, "channelName" TEXT, "channelId" TEXT, "newstate" TEXT, "created" INT, "lang" TEXT) STRICT;
+
+      
+      for(auto& r: rows) {
+	cout << humanTimeShort(iget(r, "timestamp"))<< " ";
+	r.erase("timestamp");
+	for(auto& [name, val] : r) {
+	  std::visit([&name](auto&& arg) {
+	    using T = std::decay_t<decltype(arg)>;
+	    if constexpr (std::is_same_v<T, string>)
+	      cout<<name << " " << (string) arg << " ";
+	    else if constexpr (std::is_same_v<T, int64_t>)
+	      cout<<name << " " << (int64_t) arg << " ";
+	    else if constexpr (std::is_same_v<T, nullptr_t>)
+	      ;
+	  }, val);
+	}
+	cout<<endl;
+      }
+
+    }
+  }
+
+  else {
     cout<<args<<endl;
   }
 }
