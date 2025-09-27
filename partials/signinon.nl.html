@@ -19,14 +19,6 @@ email: ''
 <template x-if="state==0">
   <div>
     <p>
-      De volgende mailing lists zijn beschikbaar:
-    </p>
-    <ul>
-      {% for c in channels %}
-      <li {% if c.cid==highlight %}style="border-width:3px; border-style:solid; border-color:#FF0000; padding: 0.5em;" {%endif%} ><b><a href="channel.html?channelId={{c.id}}">{{c.name}}</a></b>: {{c.description}}</li>
-      {% endfor %}
-    </ul>
-    <p>
       Als je je wil inschrijven, of je bestaande abonnementen wil beheren, vul dan hier je email adres in en druk op enter. Je krijgt dan een mail met daarin een link naar een pagina waar je dat kan regelen:
     </p>
     <form @submit.prevent="doRequestAccountPage($data, '{{highlight}}');">
@@ -34,8 +26,18 @@ email: ''
       <input x-model="email" name="email" size="80" placeholder="email address" autofocus required type="email">
       <input type="submit" value="Verstuur">
       </fieldset>
-    </form>
-    <p>Privacybeleid: je data wordt aan niemand verkocht en met niemand gedeeld. 
+    </form>  
+    <p>
+      De volgende mailing lists zijn beschikbaar:
+    </p>
+    <ul>
+      {% for c in channels %}
+      <li {% if c.cid==highlight %}style="border-width:3px; border-style:solid; border-color:#FF0000; padding: 0.5em;" {%endif%} ><b><a href="channel.html?channelId={{c.id}}">{{c.name}}</a></b>: {{c.description}}</li>
+      {% endfor %}
+    </ul>
+
+    <p>Privacybeleid: je data wordt aan niemand verkocht en met niemand gedeeld
+    (behalve indien wettelijk verplicht).
       Ik ga je nooit spammen. Als er ooit andere mail wordt gestuurd is dat omdat dat heel dringend nodig was (bijvoorbeeld als we gehacked zouden zijn). Behalve je emailadres en je abonnementen slaan we niets op. Niet eens je naam, en ook geen wachtwoord.
       Wel worden er tijdelijk logfiles bijgehouden om storingen te onderzoeken, maar die logregels zijn niet aan je account gekoppeld.
     </p>
