@@ -254,6 +254,8 @@ int main(int argc, char** argv)
 
   argparse::ArgumentParser log_show_command("show");
   log_show_command.add_description("Show recent log messages");
+  int logShowNumDays=7;
+  log_show_command.add_argument("--days").help("number of days of log to show").default_value(logShowNumDays).store_into(logShowNumDays);
   log_command.add_subparser(log_show_command);
   args.add_subparser(log_command);
   
@@ -663,8 +665,8 @@ int main(int argc, char** argv)
   }
   else if(args.is_subcommand_used(log_command)) {
     if(log_command.is_subcommand_used(log_show_command)) {
-      cout << "show logs"<<endl;
-      time_t lim = time(0) - 7*86400;
+      //      cout << "show logs for "<<logShowNumDays <<endl;
+      time_t lim = time(0) - logShowNumDays*86400;
       auto rows = db.queryT("select * from log where timestamp > ? order by timestamp asc", {lim});
 
       // CREATE TABLE IF NOT EXISTS "log" ( 'timestamp' INT , "action" TEXT, "userId" TEXT, "email" TEXT, "channelName" TEXT, "channelId" TEXT, "newstate" TEXT, "created" INT, "lang" TEXT) STRICT;
