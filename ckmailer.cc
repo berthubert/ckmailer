@@ -547,6 +547,8 @@ int main(int argc, char** argv)
       auto rows = db.query("select channels.rowid, name, description, count(1) c from subscriptions,channels where channels.id=channelid group by channelId order by 1");
       for(auto& r : rows)
 	cout << 'c'<< r["rowid"] << '\t' << r["name"]<< '\t' << r["description"]<<"\t"<< r["c"]<<'\n';
+      rows = db.query("select count(distinct(userId)) as c from subscriptions");
+      cout<<"total distinct subscribers\t"<< rows[0]["c"] << endl;
     }
 
     else {
