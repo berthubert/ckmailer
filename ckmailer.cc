@@ -138,9 +138,10 @@ int main(int argc, char** argv)
   channel_list_command.add_description("List all channels");
   channel_command.add_subparser(channel_list_command);
 
-  argparse::ArgumentParser channel_ls_command("ls");
-  channel_ls_command.add_description("List all channels");
-  channel_command.add_subparser(channel_ls_command);
+  argparse::ArgumentParser channel_members_command("members");
+  channel_members_command.add_description("List all members of a channel");
+  channel_members_command.add_argument("channel").help("channel id").required();
+  channel_command.add_subparser(channel_members_command);
 
   argparse::ArgumentParser channel_counts_command("counts");
   channel_counts_command.add_description("List all channel counts");
@@ -538,7 +539,7 @@ int main(int argc, char** argv)
       auto res = db.query("select last_insert_rowid() rid");
       cout<<"created new channel c"<<res[0]["rid"]<<", https://berthub.eu/ckmailer/channel.html?channelId="<<id<<endl;
     }
-    else if(channel_command.is_subcommand_used(channel_list_command) || channel_command.is_subcommand_used(channel_ls_command)) {
+    else if(channel_command.is_subcommand_used(channel_list_command)) {
       auto rows = db.query("select rowid,* from channels");
       for(auto& r : rows)
 	cout << 'c'<< r["rowid"] << '\t' << r["name"]<< '\t' << r["description"]<<"\t"<< r["id"]<<'\n';
@@ -549,6 +550,16 @@ int main(int argc, char** argv)
 	cout << 'c'<< r["rowid"] << '\t' << r["name"]<< '\t' << r["description"]<<"\t"<< r["c"]<<'\n';
       rows = db.query("select count(distinct(userId)) as c from subscriptions");
       cout<<"total distinct subscribers\t"<< rows[0]["c"] << endl;
+    }
+    else if(channel_command.is_subcommand_used(channel_members_command)) {
+      int id = atoi(channel_members_command.get("channel").substr(1).c_str());
+      if(!id) {
+	cerr<<"Please specify a channel as 'c1'"<<endl;
+	return 0;
+      }
+      auto rows = db.query("select email from subscriptions,channels,users where channelId=channels.id and channels.rowid=? and users.id=subscriptions.userId", {id});
+      for(auto& r : rows)
+	cout << r["email"] << "\n";
     }
 
     else {
