@@ -32,7 +32,9 @@ email: ''
     </p>
     <ul>
       {% for c in channels %}
-      <li {% if c.cid==highlight %}style="border-width:3px; border-style:solid; border-color:#FF0000; padding: 0.5em;" {%endif%} ><b><a href="channel.html?channelId={{c.id}}">{{c.name}}</a></b>: {{c.description}}</li>
+      <li {% if c.cid==highlight %}style="border-width:3px; border-style:solid; border-color:#FF0000; padding: 0.5em;" {%endif%} ><b><a href="channel.html?channelId={{c.id}}">{{c.name}}</a></b>: {{c.description}}
+      &nbsp;<a href="channel-index.xml?channelId={{c.id}}"><img width="24" src="Generic_Feed-icon.svg"></a>
+      </li>
       {% endfor %}
     </ul>
 
