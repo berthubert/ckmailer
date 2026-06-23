@@ -8,7 +8,7 @@
 #include <random>
 #include <sclasses.hh>
 #include <regex>
-#include "base64.hpp"
+#include <openssl/evp.h>
 using namespace std;
 
 uint64_t getRandom64()
@@ -17,14 +17,20 @@ uint64_t getRandom64()
   return ((uint64_t)rd() << 32) | rd();
 }
 
+string to_base64(string_view s)
+{
+  string ret;
+  ret.resize((s.length() / 3 + 1) * 4 + 1);
+  ret.resize(EVP_EncodeBlock((unsigned char *) ret.data(), (const unsigned char *) s.data(), (int) s.length()));
+  return ret;
+}
+
 string getLargeId()
 {
-  uint64_t id = getRandom64();
-  string ret = base64::to_base64(std::string((char*)&id, sizeof(id)));
-  ret.resize(ret.size()-1); // this base64url implementation pads, somehow
-  id = getRandom64();
-  ret += base64::to_base64(std::string((char*)&id, sizeof(id)));
-  ret.resize(ret.size()-1); // this base64url implementation pads, somehow
+  uint64_t id[2] = {getRandom64(), getRandom64()};
+  string ret = to_base64({(char *) &id, sizeof id});
+  // strip padding
+  ret.resize(ret.size() - 2);
 
   for(auto& c : ret) {
     if(c == '/')
@@ -121,6 +127,15 @@ bool endsWith(const std::string& str, const std::string& suffix) {
     return std::equal(suffix.rbegin(), suffix.rend(), str.rbegin());
 }
 
+// Every 76-character base64 line encodes B64_BLOCK bytes of input.
+#define B64_BLOCK 57
+
+static void writeb64(SocketCommunicator& sc, string_view in) {
+  for (size_t pos = 0; pos < in.size(); pos += B64_BLOCK) {
+    sc.writen(to_base64(in.substr(pos, B64_BLOCK)));
+    sc.writen("\r\n");
+  }
+}
 
 void sendEmail(const std::string& server, const std::string& from, const std::string& to, const std::string& subject, const std::string& textBody, const std::string& htmlBody, const std::string& bcc, const std::string& envelopeFrom, const std::vector<std::pair<std::string, std::string>>& att,
 	       const std::vector<std::pair<std::string, std::string>>& headers)
@@ -178,7 +193,7 @@ void sendEmail(const std::string& server, const std::string& from, const std::st
   }
   string esubject;
   if(needb64)
-    esubject = "=?utf-8?B?"+base64::to_base64(subject)+"?=";
+    esubject = "=?utf-8?B?"+to_base64(subject)+"?=";
   else
     esubject = subject;
 
@@ -233,13 +248,7 @@ void sendEmail(const std::string& server, const std::string& from, const std::st
   
   sc.writen("Content-Type: text/html; charset=\"utf-8\"\r\n");
   sc.writen("Content-Transfer-Encoding: base64\r\n\r\n");
-  int linelen = 76;
-  string b64 = base64::to_base64(htmlBody);
-  int pos = 0;
-  for(pos = 0 ; pos < (int)b64.length() - linelen; pos += linelen) {
-    sc.writen(b64.substr(pos, linelen)+"\r\n");
-  }
-  sc.writen(b64.substr(pos) +"\r\n");
+  writeb64(sc, htmlBody);
   // perhaps another empty line?
 
   for(const auto& [id, fname] : att) {
@@ -254,11 +263,7 @@ void sendEmail(const std::string& server, const std::string& from, const std::st
     sc.writen("Content-Disposition: inline; filename=\""+fname+"\"\r\n");
     sc.writen("Content-Id: <" + id+ ">\r\n");
     sc.writen("Content-Transfer-Encoding: base64\r\n\r\n");
-    b64 = base64::to_base64(getContentsOfFile(fname));
-    for(pos = 0 ; pos < (int)b64.length() - linelen; pos += linelen) {
-      sc.writen(b64.substr(pos, linelen)+"\r\n");
-    }
-    sc.writen(b64.substr(pos) +"\r\n");
+    writeb64(sc, getContentsOfFile(fname));
   }
   
   sc.writen("--"+sepa2+"--\r\n\r\n");
